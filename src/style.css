@@ -269,7 +269,7 @@ body,
 }
 
 .pet-hidden #pet-canvas {
-  opacity: 0.18;
+  opacity: 0;
   pointer-events: none;
 }
 

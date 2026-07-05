@@ -366,6 +366,8 @@ function updatePetSettings(settings: Partial<PetState["settings"]>, silent = fal
   };
 
   applyAppSettings();
+  if (settings.petVisible === false && ballGame.active) stopBallGame(true);
+  if (pet.settings.petVisible) renderer.draw(pet, performance.now(), ballGame);
   updateStatus();
   scheduleTick();
   void saveState(pet);
@@ -402,6 +404,8 @@ function renderSettingsControls() {
 function applyAppSettings() {
   renderSettingsControls();
   appRoot.classList.toggle("pet-hidden", !pet.settings.petVisible);
+  petCanvas.setAttribute("aria-hidden", String(!pet.settings.petVisible));
+  if (!pet.settings.petVisible) speechBubble.classList.remove("visible");
   void applyNativeWindowSettings();
 }
 
@@ -673,7 +677,7 @@ dragRegion?.addEventListener("mousedown", async (event) => {
 });
 
 function targetFrameIntervalMs() {
-  if (!isPetVisible()) return document.hidden ? hiddenMaintenanceIntervalMs : 1000;
+  if (!isPetVisible()) return hiddenMaintenanceIntervalMs;
   if (ballGame.active && !document.hidden) return activeBallFrameIntervalMs;
   return document.hidden ? hiddenMaintenanceIntervalMs : frameBudgetMs[pet.mode];
 }

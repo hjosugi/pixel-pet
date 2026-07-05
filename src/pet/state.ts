@@ -95,11 +95,11 @@ const DEFAULT_PET: PetIdentity = {
 const DEFAULT_SETTINGS: PetSettings = {
   lowDistractionMode: false,
   aiProvider: "rule",
-  alwaysOnTop: true,
+  alwaysOnTop: false,
   autostartRequested: false,
-  motionLevel: "normal",
+  motionLevel: "calm",
   petVisible: true,
-  talkFrequency: "normal",
+  talkFrequency: "quiet",
 };
 const DEFAULT_FOCUS_TIMER: FocusTimerState = {
   running: false,

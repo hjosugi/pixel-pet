@@ -54,7 +54,7 @@ Release build notes for Windows, macOS, and Linux are in
 
 ```txt
 - transparent small desktop window
-- always-on-top pet window
+- optional always-on-top pet window
 - taskbar hidden on Windows/Linux
 - tray menu: show / hide / quit
 - procedural cyber cat pixel drawing
@@ -68,6 +68,7 @@ Release build notes for Windows, macOS, and Linux are in
 - optional ball toss mini-game
 - persistent XP, level, affection, and reward items
 - local pet capsule JSON export/import
+- persisted settings for visibility, always-on-top, talk frequency, and motion
 - idle / walk / sleep / react state machine
 - click reaction
 - short dialogue bubble
@@ -100,8 +101,9 @@ Release build notes for Windows, macOS, and Linux are in
 
 ## Desktop shell notes
 
-- The Tauri window is frameless, transparent, fixed-size, always on top, and hidden from the taskbar where the platform supports `skipTaskbar`.
+- The Tauri window is frameless, transparent, fixed-size, and hidden from the taskbar where the platform supports `skipTaskbar`.
 - Drag from the top strip of the pet window to reposition it.
+- The `set` panel controls pet visibility, always-on-top behavior, talk frequency, and motion level. Autostart is shown disabled until a desktop autostart integration is added.
 - The tray menu provides Show Pixel Pet, Hide, and Quit.
 - Closing the window hides it to the tray; use Quit from the tray menu to exit the app.
 - macOS transparency uses `macOSPrivateApi`, which is acceptable for this local prototype but not for App Store distribution.
@@ -231,7 +233,6 @@ falls back to the default pack or the procedural pet renderer.
 ```txt
 v0.2
 - replace procedural pet with spritesheet animation
-- add settings window
 - add low distraction mode
 - add pet pack import/export
 
