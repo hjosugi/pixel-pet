@@ -89,3 +89,18 @@ body,
   background: #5cffea;
   box-shadow: 0 0 8px rgba(92, 255, 234, 0.9);
 }
+
+#perf-readout {
+  position: absolute;
+  right: 9px;
+  bottom: 8px;
+  max-width: 190px;
+  padding: 4px 6px;
+  border: 1px solid rgba(92, 255, 234, 0.22);
+  border-radius: 6px;
+  background: rgba(8, 10, 24, 0.52);
+  color: rgba(217, 247, 255, 0.72);
+  font-size: 9px;
+  line-height: 1.2;
+  pointer-events: none;
+}

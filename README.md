@@ -73,6 +73,14 @@ npm run tauri:build
 - See `docs/ASSETS.md` for the asset policy.
 - LLM is intentionally not always running. Keep AI on-demand only.
 
+## Performance budget
+
+- Idle and walk animation targets 10 FPS.
+- React animation targets 12 FPS.
+- Sleep animation targets 4 FPS.
+- Hidden documents skip canvas drawing and run only a 5 second maintenance tick for state updates and saves.
+- Add `?debugTiming=1` in a browser preview, or run on localhost, to show the dev timing readout.
+
 ## Next steps
 
 ```txt
