@@ -81,6 +81,15 @@ npm run tauri:build
 - Hidden documents skip canvas drawing and run only a 5 second maintenance tick for state updates and saves.
 - Add `?debugTiming=1` in a browser preview, or run on localhost, to show the dev timing readout.
 
+## Desktop shell notes
+
+- The Tauri window is frameless, transparent, fixed-size, always on top, and hidden from the taskbar where the platform supports `skipTaskbar`.
+- Drag from the top strip of the pet window to reposition it.
+- The tray menu provides Show Pixel Pet, Hide, and Quit.
+- Closing the window hides it to the tray; use Quit from the tray menu to exit the app.
+- macOS transparency uses `macOSPrivateApi`, which is acceptable for this local prototype but not for App Store distribution.
+- Windows and Linux taskbar hiding depends on the desktop shell; the tray menu remains the fallback control surface.
+
 ## Next steps
 
 ```txt
