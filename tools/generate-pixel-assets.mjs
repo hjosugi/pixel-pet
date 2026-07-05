@@ -303,7 +303,7 @@ function writeMetadata(path, name) {
   const metadata = {
     image: "spritesheet.png",
     name,
-    license: "Original pixel art created for pixel-pet. Released under the repository MIT License.",
+    license: "Original pixel art created for pixel-pet. Released under the repository 0BSD License.",
     frame: {
       width: FRAME_SIZE,
       height: FRAME_SIZE,

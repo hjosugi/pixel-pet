@@ -68,7 +68,7 @@ npm run tauri:build
 - macOS transparent windows require `macOSPrivateApi: true` in this prototype.
 - That is fine for a local prototype, but not for App Store distribution.
 - The current pet is procedural Canvas art. Replace it with a sprite sheet when the first real pet art is ready.
-- The included pet spritesheets are original free pixel art generated for this repo under the MIT License.
+- The repository uses the 0BSD License so code and generated placeholder assets are broadly reusable.
 - Kofun Friends art is approved for the `kofun-friend` pet pack once the actual source files are added with a short source note.
 - See `docs/ASSETS.md` for the asset policy.
 - LLM is intentionally not always running. Keep AI on-demand only.

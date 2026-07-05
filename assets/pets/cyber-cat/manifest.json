@@ -10,7 +10,7 @@
   "assets": {
     "spritesheet": "spritesheet.png",
     "metadata": "spritesheet.json",
-    "license": "MIT",
+    "license": "0BSD",
     "source": "Original pixel art generated for this repository."
   },
   "animations": {

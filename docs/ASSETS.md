@@ -4,7 +4,7 @@
 
 The current `cyber-cat`, `cyber-penguin`, and `kofun-friend` sprite sheets are
 original generated pixel art for this repository. They are released under the
-repository MIT License.
+repository 0BSD License.
 
 Regenerate them with:
 

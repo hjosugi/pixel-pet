@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "license": "0BSD",
   "description": "A lightweight cyberpunk pixel desktop pet prototype built with Tauri v2 and TypeScript.",
   "scripts": {
     "assets:generate": "node tools/generate-pixel-assets.mjs",

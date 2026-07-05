@@ -3,7 +3,7 @@ name = "pixel-pet"
 version = "0.1.0"
 description = "A lightweight cyberpunk pixel desktop pet."
 authors = ["pixel-pet contributors"]
-license = "MIT"
+license = "0BSD"
 edition = "2021"
 rust-version = "1.77.2"
 
