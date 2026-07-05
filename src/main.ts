@@ -15,7 +15,14 @@ import {
 import { AI_HISTORY_LIMIT, askPetAi, type AiChatMessage } from "./pet/ai";
 import { PET_DIALOGUE_MAX_CHARS, chooseLine, type DialogueReason } from "./pet/dialogue";
 import { getPetPack, listPetPacks, type PetPack } from "./pet/packs";
-import { PixelPetRenderer } from "./pet/renderer";
+import { PixelPetRenderer, type BallGameView } from "./pet/renderer";
+
+type BallGameState = BallGameView & {
+  vx: number;
+  vy: number;
+  startedAt: number;
+  lastCatchAt: number;
+};
 
 const canvas = document.querySelector<HTMLCanvasElement>("#pet-canvas");
 const speech = document.querySelector<HTMLDivElement>("#speech");
@@ -23,6 +30,7 @@ const stateLabel = document.querySelector<HTMLSpanElement>("#state-label");
 const dragRegion = document.querySelector<HTMLDivElement>("#drag-region");
 const petSelector = document.querySelector<HTMLDivElement>("#pet-selector");
 const focusToggle = document.querySelector<HTMLButtonElement>("#focus-toggle");
+const ballToggle = document.querySelector<HTMLButtonElement>("#ball-toggle");
 const focusTimerToggle = document.querySelector<HTMLButtonElement>("#focus-timer-toggle");
 const focusInterval = document.querySelector<HTMLSelectElement>("#focus-interval");
 const focusClock = document.querySelector<HTMLSpanElement>("#focus-clock");
@@ -38,6 +46,7 @@ if (
   !stateLabel ||
   !petSelector ||
   !focusToggle ||
+  !ballToggle ||
   !focusTimerToggle ||
   !focusInterval ||
   !focusClock ||
@@ -55,6 +64,7 @@ const speechBubble = speech;
 const statusText = stateLabel;
 const selector = petSelector;
 const focusButton = focusToggle;
+const ballButton = ballToggle;
 const focusTimerButton = focusTimerToggle;
 const focusIntervalSelect = focusInterval;
 const focusClockLabel = focusClock;
@@ -75,6 +85,7 @@ let speechTimer: number | undefined;
 let aiInFlight = false;
 let openAiApiKey: string | null = null;
 let chatHistory: AiChatMessage[] = [];
+let ballGame = createInactiveBallGame();
 
 const frameBudgetMs = {
   idle: 1000 / 10,
@@ -84,9 +95,13 @@ const frameBudgetMs = {
 } as const;
 
 const hiddenMaintenanceIntervalMs = 5_000;
+const activeBallFrameIntervalMs = 1000 / 20;
 const regularAutoTalkIntervalMs = 90_000;
 const lowDistractionAutoTalkIntervalMs = 15 * 60_000;
 const reminderSpamGuardMs = 60_000;
+const ballGameMaxMs = 45_000;
+const ballGroundY = 184;
+const ballCatchRadius = 58;
 const debugTimingEnabled =
   new URLSearchParams(window.location.search).get("debugTiming") === "1" ||
   window.location.hostname === "localhost" ||
@@ -99,6 +114,20 @@ function createTimingReadout() {
   readout.textContent = "boot";
   appRoot.append(readout);
   return readout;
+}
+
+function createInactiveBallGame(): BallGameState {
+  return {
+    active: false,
+    x: 72,
+    y: 96,
+    vx: 0,
+    vy: 0,
+    radius: 7,
+    score: 0,
+    startedAt: 0,
+    lastCatchAt: 0,
+  };
 }
 
 function packOrder(pack: PetPack) {
@@ -162,10 +191,24 @@ function react(reason: DialogueReason) {
   sayPetLine(reason);
 }
 
-petCanvas.addEventListener("click", () => react("click"));
+petCanvas.addEventListener("click", (event) => {
+  if (ballGame.active) {
+    tossBall(event);
+    return;
+  }
+  react("click");
+});
 
 focusButton.addEventListener("click", () => {
   setLowDistractionMode(!pet.settings.lowDistractionMode);
+});
+
+ballButton.addEventListener("click", () => {
+  if (ballGame.active) {
+    stopBallGame();
+  } else {
+    startBallGame();
+  }
 });
 
 focusTimerButton.addEventListener("click", () => {
@@ -228,7 +271,7 @@ function renderPetSelector() {
 
 function selectPet(pack: PetPack) {
   pet = switchPetState(pet, { id: pack.id, name: pack.name });
-  renderer.draw(pet, performance.now());
+  renderer.draw(pet, performance.now(), ballGame);
   updateStatus();
   renderPetSelector();
   say(`${pack.name} online.`, 1600);
@@ -271,6 +314,60 @@ function setFocusTimerRunning(running: boolean) {
   renderFocusTimer(now);
   void saveState(pet);
   say(running ? "focus started." : "focus paused.", 1400);
+}
+
+function startBallGame() {
+  const now = Date.now();
+  ballGame = {
+    active: true,
+    x: 70,
+    y: 86,
+    vx: 118,
+    vy: -125,
+    radius: 7,
+    score: 0,
+    startedAt: now,
+    lastCatchAt: 0,
+  };
+  pet = {
+    ...pet,
+    mode: "react",
+    modeStartedAt: now,
+  };
+  renderBallGameControls();
+  scheduleTick();
+  say("ball ready.", 1200);
+}
+
+function stopBallGame(silent = false) {
+  ballGame = createInactiveBallGame();
+  pet = {
+    ...pet,
+    mode: "idle",
+    modeStartedAt: Date.now(),
+  };
+  renderBallGameControls();
+  scheduleTick();
+  if (!silent) say("nice play.", 1200);
+}
+
+function tossBall(event: MouseEvent) {
+  const rect = petCanvas.getBoundingClientRect();
+  const targetX = ((event.clientX - rect.left) / rect.width) * petCanvas.width;
+  const targetY = ((event.clientY - rect.top) / rect.height) * petCanvas.height;
+  ballGame.vx = Math.max(-190, Math.min(190, (targetX - ballGame.x) * 1.45));
+  ballGame.vy = Math.max(-210, Math.min(-80, -150 + (targetY - ballGame.y) * 0.25));
+  pet = {
+    ...pet,
+    mode: "walk",
+    modeStartedAt: Date.now(),
+    vx: targetX < pet.x + 64 ? -18 : 18,
+  };
+}
+
+function renderBallGameControls() {
+  ballButton.textContent = ballGame.active ? "stop" : "ball";
+  ballButton.setAttribute("aria-pressed", String(ballGame.active));
 }
 
 function isFocusInterval(value: number): value is FocusReminderIntervalMinutes {
@@ -371,6 +468,7 @@ dragRegion?.addEventListener("mousedown", async (event) => {
 });
 
 function targetFrameIntervalMs() {
+  if (ballGame.active && !document.hidden) return activeBallFrameIntervalMs;
   return document.hidden ? hiddenMaintenanceIntervalMs : frameBudgetMs[pet.mode];
 }
 
@@ -389,7 +487,7 @@ function updateTimingReadout(now: number, dt: number, rendered: boolean) {
 }
 
 function updateStatus() {
-  const modeLabel = isLowDistractionActive() ? "quiet" : pet.mode;
+  const modeLabel = ballGame.active ? `ball ${ballGame.score}` : isLowDistractionActive() ? "quiet" : pet.mode;
   statusText.textContent = `${pet.name} / ${modeLabel} / mood ${Math.round(pet.mood)}`;
 }
 
@@ -427,6 +525,66 @@ function updateFocusTimer(rendered: boolean) {
   sayPetLine("focus", 1800);
 }
 
+function updateBallGame(dt: number) {
+  if (!ballGame.active) return;
+
+  const now = Date.now();
+  if (now - ballGame.startedAt > ballGameMaxMs) {
+    stopBallGame(true);
+    say("nice play.", 1200);
+    return;
+  }
+
+  ballGame.vy += 260 * dt;
+  ballGame.x += ballGame.vx * dt;
+  ballGame.y += ballGame.vy * dt;
+
+  if (ballGame.x < ballGame.radius) {
+    ballGame.x = ballGame.radius;
+    ballGame.vx = Math.abs(ballGame.vx) * 0.72;
+  }
+  if (ballGame.x > petCanvas.width - ballGame.radius) {
+    ballGame.x = petCanvas.width - ballGame.radius;
+    ballGame.vx = -Math.abs(ballGame.vx) * 0.72;
+  }
+  if (ballGame.y > ballGroundY) {
+    ballGame.y = ballGroundY;
+    ballGame.vy = -Math.abs(ballGame.vy) * 0.52;
+    ballGame.vx *= 0.84;
+  }
+
+  const petCenterX = pet.x + 64;
+  const petCenterY = pet.y + 58;
+  const dx = ballGame.x - petCenterX;
+  const dy = ballGame.y - petCenterY;
+  const distance = Math.hypot(dx, dy);
+  if (distance < ballCatchRadius && now - ballGame.lastCatchAt > 700) {
+    ballGame.lastCatchAt = now;
+    ballGame.score += 1;
+    ballGame.vx = (ballGame.x < petCenterX ? -1 : 1) * 120;
+    ballGame.vy = -150;
+    pet = {
+      ...pet,
+      mood: Math.min(100, pet.mood + 2),
+      affection: Math.min(100, pet.affection + 1),
+      mode: "react",
+      modeStartedAt: now,
+    };
+    if (ballGame.score % 3 === 0) sayPetLine("click", 1200);
+  } else if (Math.abs(dx) > 28 && pet.mode !== "react") {
+    pet = {
+      ...pet,
+      mode: "walk",
+      modeStartedAt: pet.mode === "walk" ? pet.modeStartedAt : now,
+      vx: dx < 0 ? -18 : 18,
+    };
+  }
+
+  if (now - ballGame.startedAt > 7_000 && Math.abs(ballGame.vx) < 8 && Math.abs(ballGame.vy) < 14) {
+    stopBallGame();
+  }
+}
+
 function ambientDialogueReason(): DialogueReason {
   const hour = new Date().getHours();
   if (pet.energy < 24) return "lowEnergy";
@@ -441,8 +599,9 @@ function tick(now: number) {
   lastTick = now;
 
   pet = stepPetState(pet, dt);
+  updateBallGame(dt);
   updateFocusTimer(rendered);
-  if (rendered) renderer.draw(pet, now);
+  if (rendered) renderer.draw(pet, now, ballGame);
   updateStatus();
   renderFocusTimer();
 
@@ -482,9 +641,10 @@ async function boot() {
   applyLowDistractionUi();
   renderFocusIntervalOptions();
   renderAiProviderOptions();
+  renderBallGameControls();
   renderFocusTimer();
   renderAiControls();
-  renderer.draw(pet, performance.now());
+  renderer.draw(pet, performance.now(), ballGame);
   updateStatus();
   renderPetSelector();
   say("pixel-pet online.", 1800);

@@ -1,6 +1,14 @@
 import type { PetMode, PetState } from "./state";
 import { DEFAULT_PET_PACK_ID, getPetPack, type PetPack } from "./packs";
 
+export type BallGameView = {
+  active: boolean;
+  x: number;
+  y: number;
+  radius: number;
+  score: number;
+};
+
 export class PixelPetRenderer {
   private readonly ctx: CanvasRenderingContext2D;
   private readonly fallbackScale = 4;
@@ -15,12 +23,13 @@ export class PixelPetRenderer {
     this.ctx.imageSmoothingEnabled = false;
   }
 
-  draw(pet: PetState, now: number) {
+  draw(pet: PetState, now: number, ball?: BallGameView) {
     const ctx = this.ctx;
     const lowDistraction = pet.settings.lowDistractionMode;
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
     this.drawGrid(now, lowDistraction);
+    if (ball?.active) this.drawBall(ball, now);
 
     const t = now / 1000;
     const bob = pet.mode === "sleep" ? 0 : Math.round(Math.sin(t * (lowDistraction ? 3 : 5)) * (lowDistraction ? 0.7 : 1.5));
@@ -135,6 +144,25 @@ export class PixelPetRenderer {
     this.ctx.globalAlpha = 0.42;
     this.px(x - 5, y + 27, 35, 3, glitch ? "#ff4df8" : "#28ffe8");
     this.ctx.globalAlpha = 1;
+  }
+
+  private drawBall(ball: BallGameView, now: number) {
+    const pulse = Math.floor(now / 140) % 2;
+    const x = Math.round(ball.x);
+    const y = Math.round(ball.y);
+    const r = ball.radius;
+
+    this.ctx.save();
+    this.ctx.globalAlpha = 0.88;
+    this.ctx.fillStyle = "#070a14";
+    this.ctx.fillRect(x - r - 1, y - r - 1, r * 2 + 2, r * 2 + 2);
+    this.ctx.fillStyle = pulse ? "#ff55f7" : "#5cffea";
+    this.ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    this.ctx.fillStyle = "#fff3a3";
+    this.ctx.fillRect(x - 2, y - r + 1, 4, 2);
+    this.ctx.fillStyle = "rgba(92, 255, 234, 0.28)";
+    this.ctx.fillRect(x - r - 3, y + r + 2, r * 2 + 6, 2);
+    this.ctx.restore();
   }
 
   private drawCat(x: number, y: number, pet: PetState, glitch: boolean, now: number) {
