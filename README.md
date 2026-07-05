@@ -200,6 +200,10 @@ JSON, unsupported schema versions, and invalid progression payloads fail safely
 with no state change. QR sharing is intentionally left as a follow-up layer on
 top of this JSON schema.
 
+Signature fields are reserved in exported capsules. Imports currently label
+valid capsules as unsigned or unverified signed; neither is treated as trusted.
+See `docs/CAPSULE_SHARING.md` for the QR payload and signature plan.
+
 ## Pet packs
 
 Pet packs live under `assets/pets/<pack>/` and are loaded from metadata at build

@@ -14,6 +14,7 @@ export type PetCapsule = {
     features: string[];
     future: Record<string, never>;
   };
+  signature: CapsuleSignature;
   exportedAt: string;
   pet: {
     id: string;
@@ -33,6 +34,19 @@ export type PetCapsule = {
   };
 };
 
+export type CapsuleSignature = {
+  status: "unsigned" | "signed";
+  algorithm: "ed25519" | null;
+  publicKeyId: string | null;
+  value: string | null;
+  signedFields: string[];
+};
+
+export type PetCapsuleImportResult = {
+  state: PetState;
+  trust: "unsigned" | "unverified-signed";
+};
+
 export function createPetCapsule(state: PetState, ownerNote: string): PetCapsule {
   return {
     schema: CAPSULE_SCHEMA,
@@ -41,6 +55,13 @@ export function createPetCapsule(state: PetState, ownerNote: string): PetCapsule
       minAppVersion: "0.1.0",
       features: ["progression-v1", "pack-id-v1"],
       future: {},
+    },
+    signature: {
+      status: "unsigned",
+      algorithm: null,
+      publicKeyId: null,
+      value: null,
+      signedFields: ["schema", "schemaVersion", "compatibility", "exportedAt", "pet"],
     },
     exportedAt: new Date().toISOString(),
     pet: {
@@ -71,7 +92,7 @@ export function serializePetCapsule(capsule: PetCapsule) {
   return `${JSON.stringify(capsule, null, 2)}\n`;
 }
 
-export function importPetCapsule(raw: string, currentState: PetState, packs: PetPack[]): PetState | null {
+export function importPetCapsule(raw: string, currentState: PetState, packs: PetPack[]): PetCapsuleImportResult | null {
   const capsule = parseCapsule(raw);
   if (!capsule) return null;
 
@@ -81,16 +102,19 @@ export function importPetCapsule(raw: string, currentState: PetState, packs: Pet
   const name = stringField(capsule.pet.name, pack.name).slice(0, MAX_NAME_LENGTH);
   const imported = switchPetState(currentState, { id: pack.id, name });
   return {
-    ...imported,
-    mood: clampNumber(capsule.pet.traits.mood, 0, 100, 72),
-    energy: clampNumber(capsule.pet.traits.energy, 0, 100, 80),
-    affection: clampNumber(capsule.pet.traits.affection, 0, 100, 20),
-    mode: "react",
-    modeStartedAt: Date.now(),
-    progression: {
-      ...capsule.pet.progression,
-      rewardHistory: {},
+    state: {
+      ...imported,
+      mood: clampNumber(capsule.pet.traits.mood, 0, 100, 72),
+      energy: clampNumber(capsule.pet.traits.energy, 0, 100, 80),
+      affection: clampNumber(capsule.pet.traits.affection, 0, 100, 20),
+      mode: "react",
+      modeStartedAt: Date.now(),
+      progression: {
+        ...capsule.pet.progression,
+        rewardHistory: {},
+      },
     },
+    trust: capsule.signature.status === "signed" ? "unverified-signed" : "unsigned",
   };
 }
 
@@ -125,6 +149,7 @@ function parseCapsule(raw: string): PetCapsule | null {
         : [],
       future: {},
     },
+    signature: normalizeSignature(candidate.signature),
     exportedAt: stringField(candidate.exportedAt, new Date().toISOString()),
     pet: {
       id: stringField(pet.id, packId),
@@ -135,6 +160,34 @@ function parseCapsule(raw: string): PetCapsule | null {
       ownerNote: stringField(pet.ownerNote, "").slice(0, MAX_OWNER_NOTE_LENGTH),
       progression,
     },
+  };
+}
+
+function normalizeSignature(raw: unknown): CapsuleSignature {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return unsignedSignature();
+  }
+
+  const candidate = raw as Partial<CapsuleSignature>;
+  const status = candidate.status === "signed" ? "signed" : "unsigned";
+  return {
+    status,
+    algorithm: candidate.algorithm === "ed25519" ? "ed25519" : null,
+    publicKeyId: stringField(candidate.publicKeyId, "") || null,
+    value: stringField(candidate.value, "") || null,
+    signedFields: Array.isArray(candidate.signedFields)
+      ? candidate.signedFields.filter((field): field is string => typeof field === "string")
+      : unsignedSignature().signedFields,
+  };
+}
+
+function unsignedSignature(): CapsuleSignature {
+  return {
+    status: "unsigned",
+    algorithm: null,
+    publicKeyId: null,
+    value: null,
+    signedFields: ["schema", "schemaVersion", "compatibility", "exportedAt", "pet"],
   };
 }
 

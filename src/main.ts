@@ -511,12 +511,12 @@ async function importSelectedPetCapsule(file: File) {
     return;
   }
 
-  pet = imported;
+  pet = imported.state;
   updateStatus();
   renderPetSelector();
   renderer.draw(pet, performance.now(), ballGame);
   void saveState(pet);
-  say(`${pet.name} imported.`, 1600);
+  say(imported.trust === "unsigned" ? "unsigned capsule." : "unverified signed capsule.", 1600);
 }
 
 window.addEventListener("pixel-pet:focus-mode", (event) => {
