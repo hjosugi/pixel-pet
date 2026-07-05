@@ -7,6 +7,7 @@
   "description": "A lightweight cyberpunk pixel desktop pet prototype built with Tauri v2 and TypeScript.",
   "scripts": {
     "assets:generate": "node tools/generate-pixel-assets.mjs",
+    "assets:check": "npm run assets:generate && git diff --exit-code -- assets/pets",
     "dev": "vite --host 127.0.0.1",
     "build": "tsc && vite build",
     "tauri": "tauri",
