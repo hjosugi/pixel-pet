@@ -96,3 +96,7 @@ v0.5
 - add pet capsule export/import
 - add QR exchange
 ```
+
+## License
+
+0BSD. You can use, copy, modify, and distribute this project for almost any purpose.
