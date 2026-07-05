@@ -12,6 +12,7 @@ export type PetCareMemory = {
   energy: number;
   affection: number;
   lastInteractionAt: number;
+  progression: PetProgressionState;
 };
 
 export type PetSettings = {
@@ -35,6 +36,26 @@ export type FocusTimerState = {
   completedSessions: number;
 };
 
+export type RewardReason = "interaction" | "focus" | "ball" | "chat";
+export type RewardItemId = "focus-star" | "play-spark";
+export type RewardInventory = Record<RewardItemId, number>;
+
+export type PetProgressionState = {
+  schemaVersion: 1;
+  xp: number;
+  level: number;
+  rewardItems: RewardInventory;
+  rewardHistory: Partial<Record<RewardReason, number>>;
+};
+
+export type PetRewardResult = {
+  state: PetState;
+  granted: boolean;
+  leveledUp: boolean;
+  item?: RewardItemId;
+  xpGained: number;
+};
+
 export type PetState = {
   id: string;
   name: string;
@@ -51,6 +72,7 @@ export type PetState = {
   petMemories: Record<string, PetCareMemory>;
   settings: PetSettings;
   focusTimer: FocusTimerState;
+  progression: PetProgressionState;
 };
 
 const LEGACY_STORAGE_KEY = "pixel-pet.state.v1";
@@ -72,6 +94,23 @@ const DEFAULT_FOCUS_TIMER: FocusTimerState = {
   lastReminderAt: 0,
   completedSessions: 0,
 };
+const DEFAULT_REWARD_ITEMS: RewardInventory = {
+  "focus-star": 0,
+  "play-spark": 0,
+};
+const DEFAULT_PROGRESSION: PetProgressionState = {
+  schemaVersion: 1,
+  xp: 0,
+  level: 1,
+  rewardItems: { ...DEFAULT_REWARD_ITEMS },
+  rewardHistory: {},
+};
+const rewardConfigs: Record<RewardReason, { xp: number; affection: number; cooldownMs: number; item?: RewardItemId }> = {
+  interaction: { xp: 1, affection: 1, cooldownMs: 60_000 },
+  focus: { xp: 15, affection: 3, cooldownMs: 0, item: "focus-star" },
+  ball: { xp: 4, affection: 1, cooldownMs: 3_000, item: "play-spark" },
+  chat: { xp: 2, affection: 1, cooldownMs: 30_000 },
+};
 
 export function createInitialState(identity: PetIdentity = DEFAULT_PET): PetState {
   const now = Date.now();
@@ -91,6 +130,7 @@ export function createInitialState(identity: PetIdentity = DEFAULT_PET): PetStat
     petMemories: {},
     settings: { ...DEFAULT_SETTINGS },
     focusTimer: { ...DEFAULT_FOCUS_TIMER },
+    progression: cloneProgression(DEFAULT_PROGRESSION),
   };
 }
 
@@ -158,6 +198,7 @@ function normalizeState(raw: unknown): PetState | null {
     petMemories: normalizePetMemories(candidate.petMemories),
     settings: normalizeSettings(candidate.settings),
     focusTimer: normalizeFocusTimer(candidate.focusTimer),
+    progression: normalizeProgression(candidate.progression),
   };
 }
 
@@ -187,6 +228,7 @@ function normalizePetMemories(raw: unknown): Record<string, PetCareMemory> {
       energy: clamp(finiteNumberOr(candidate.energy, 80), 0, 100),
       affection: clamp(finiteNumberOr(candidate.affection, 20), 0, 100),
       lastInteractionAt: finiteNumberOr(candidate.lastInteractionAt, Date.now()),
+      progression: normalizeProgression(candidate.progression),
     };
   }
 
@@ -231,6 +273,42 @@ function normalizeReminderInterval(value: unknown): FocusReminderIntervalMinutes
     : DEFAULT_FOCUS_TIMER.reminderIntervalMinutes;
 }
 
+function normalizeProgression(raw: unknown): PetProgressionState {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return cloneProgression(DEFAULT_PROGRESSION);
+
+  const candidate = raw as Partial<PetProgressionState>;
+  const xp = Math.max(0, Math.floor(finiteNumberOr(candidate.xp, DEFAULT_PROGRESSION.xp)));
+  return {
+    schemaVersion: 1,
+    xp,
+    level: levelForXp(xp),
+    rewardItems: normalizeRewardItems(candidate.rewardItems),
+    rewardHistory: normalizeRewardHistory(candidate.rewardHistory),
+  };
+}
+
+function normalizeRewardItems(raw: unknown): RewardInventory {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ...DEFAULT_REWARD_ITEMS };
+
+  const candidate = raw as Partial<Record<RewardItemId, unknown>>;
+  return {
+    "focus-star": Math.max(0, Math.floor(finiteNumberOr(candidate["focus-star"], 0))),
+    "play-spark": Math.max(0, Math.floor(finiteNumberOr(candidate["play-spark"], 0))),
+  };
+}
+
+function normalizeRewardHistory(raw: unknown): Partial<Record<RewardReason, number>> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+
+  const candidate = raw as Partial<Record<RewardReason, unknown>>;
+  const history: Partial<Record<RewardReason, number>> = {};
+  for (const reason of Object.keys(rewardConfigs) as RewardReason[]) {
+    const value = finiteNumberOr(candidate[reason], 0);
+    if (value > 0) history[reason] = value;
+  }
+  return history;
+}
+
 export function switchPetState(state: PetState, identity: PetIdentity): PetState {
   if (state.id === identity.id) {
     return { ...state, name: identity.name };
@@ -253,6 +331,7 @@ export function switchPetState(state: PetState, identity: PetIdentity): PetState
     energy: nextCare.energy,
     affection: nextCare.affection,
     lastInteractionAt: nextCare.lastInteractionAt,
+    progression: cloneProgression(nextCare.progression),
     petMemories: memories,
   };
 }
@@ -263,7 +342,63 @@ function careMemoryFromState(state: PetState): PetCareMemory {
     energy: state.energy,
     affection: state.affection,
     lastInteractionAt: state.lastInteractionAt,
+    progression: cloneProgression(state.progression),
   };
+}
+
+export function grantPetReward(state: PetState, reason: RewardReason, now = Date.now()): PetRewardResult {
+  const config = rewardConfigs[reason];
+  const lastRewardAt = state.progression.rewardHistory[reason] ?? 0;
+  if (now - lastRewardAt < config.cooldownMs) {
+    return { state, granted: false, leveledUp: false, xpGained: 0 };
+  }
+
+  const currentLevel = state.progression.level;
+  const xp = state.progression.xp + config.xp;
+  const level = levelForXp(xp);
+  const rewardItems = { ...state.progression.rewardItems };
+  if (config.item) rewardItems[config.item] += 1;
+
+  const nextState = {
+    ...state,
+    affection: clamp(state.affection + config.affection, 0, 100),
+    progression: {
+      schemaVersion: 1 as const,
+      xp,
+      level,
+      rewardItems,
+      rewardHistory: {
+        ...state.progression.rewardHistory,
+        [reason]: now,
+      },
+    },
+  };
+
+  return {
+    state: nextState,
+    granted: true,
+    leveledUp: level > currentLevel,
+    item: config.item,
+    xpGained: config.xp,
+  };
+}
+
+export function rewardItemLabel(item: RewardItemId): string {
+  return item === "focus-star" ? "focus star" : "play spark";
+}
+
+function cloneProgression(progression: PetProgressionState): PetProgressionState {
+  return {
+    schemaVersion: 1,
+    xp: progression.xp,
+    level: progression.level,
+    rewardItems: { ...progression.rewardItems },
+    rewardHistory: { ...progression.rewardHistory },
+  };
+}
+
+function levelForXp(xp: number) {
+  return Math.max(1, Math.floor(xp / 50) + 1);
 }
 
 export function stepPetState(state: PetState, dt: number): PetState {
@@ -271,9 +406,10 @@ export function stepPetState(state: PetState, dt: number): PetState {
   const next = { ...state };
   const modeAge = now - next.modeStartedAt;
   const lowDistraction = next.settings.lowDistractionMode;
+  const protectedFocus = next.focusTimer.running || lowDistraction;
 
-  next.energy = Math.max(0, Math.min(100, next.energy - dt * 0.18));
-  next.mood = Math.max(0, Math.min(100, next.mood - dt * 0.04));
+  next.energy = Math.max(0, Math.min(100, next.energy - dt * (protectedFocus ? 0.05 : 0.18)));
+  next.mood = Math.max(0, Math.min(100, next.mood - dt * (protectedFocus ? 0 : 0.04)));
 
   if (next.mode === "walk") {
     const direction = next.vx < 0 ? -1 : 1;

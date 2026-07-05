@@ -6,10 +6,13 @@ import {
   createInitialState,
   loadState,
   saveState,
+  grantPetReward,
+  rewardItemLabel,
   stepPetState,
   switchPetState,
   type AiProviderId,
   type FocusReminderIntervalMinutes,
+  type PetRewardResult,
   type PetState,
 } from "./pet/state";
 import { AI_HISTORY_LIMIT, askPetAi, type AiChatMessage } from "./pet/ai";
@@ -188,6 +191,7 @@ function react(reason: DialogueReason) {
   pet.energy = Math.max(0, pet.energy - 1);
   pet.mode = "react";
   pet.modeStartedAt = Date.now();
+  pet = grantPetReward(pet, "interaction").state;
   sayPetLine(reason);
 }
 
@@ -443,6 +447,7 @@ async function sendChatMessage(rawText: string) {
     });
     const assistantMessage: AiChatMessage = { role: "assistant", content: reply };
     chatHistory = [...chatHistory, assistantMessage].slice(-AI_HISTORY_LIMIT);
+    pet = grantPetReward(pet, "chat").state;
     say(reply, 3200);
   } catch {
     if (!sayPetLine("click", 1800)) say("今は短くいこう。", 1800);
@@ -488,7 +493,7 @@ function updateTimingReadout(now: number, dt: number, rendered: boolean) {
 
 function updateStatus() {
   const modeLabel = ballGame.active ? `ball ${ballGame.score}` : isLowDistractionActive() ? "quiet" : pet.mode;
-  statusText.textContent = `${pet.name} / ${modeLabel} / mood ${Math.round(pet.mood)}`;
+  statusText.textContent = `${pet.name} L${pet.progression.level} / ${modeLabel} / ${pet.progression.xp}xp`;
 }
 
 function renderFocusTimer(now = Date.now()) {
@@ -509,20 +514,34 @@ function updateFocusTimer(rendered: boolean) {
   if (now - pet.focusTimer.lastReminderAt < reminderSpamGuardMs) return;
 
   const completedDelta = Math.max(1, Math.floor((dueElapsed - pet.focusTimer.lastReminderElapsedMs) / intervalMs));
-  pet = {
-    ...pet,
-    mood: Math.min(100, pet.mood + 3),
-    affection: Math.min(100, pet.affection + 2),
-    mode: "react",
-    modeStartedAt: now,
-    focusTimer: {
-      ...pet.focusTimer,
-      lastReminderElapsedMs: dueElapsed,
-      lastReminderAt: now,
-      completedSessions: pet.focusTimer.completedSessions + completedDelta,
+  const rewarded = grantPetReward(
+    {
+      ...pet,
+      mood: Math.min(100, pet.mood + 3),
+      mode: "react",
+      modeStartedAt: now,
+      focusTimer: {
+        ...pet.focusTimer,
+        lastReminderElapsedMs: dueElapsed,
+        lastReminderAt: now,
+        completedSessions: pet.focusTimer.completedSessions + completedDelta,
+      },
     },
-  };
-  sayPetLine("focus", 1800);
+    "focus",
+    now,
+  );
+  pet = rewarded.state;
+  announceReward(rewarded, true);
+  if (!rewarded.leveledUp) sayPetLine("focus", 1800);
+}
+
+function announceReward(reward: PetRewardResult, showItem: boolean) {
+  if (!reward.granted) return;
+  if (reward.leveledUp) {
+    say(`level ${reward.state.progression.level}.`, 1200);
+  } else if (showItem && reward.item) {
+    say(`+${rewardItemLabel(reward.item)}.`, 1200);
+  }
 }
 
 function updateBallGame(dt: number) {
@@ -563,14 +582,19 @@ function updateBallGame(dt: number) {
     ballGame.score += 1;
     ballGame.vx = (ballGame.x < petCenterX ? -1 : 1) * 120;
     ballGame.vy = -150;
-    pet = {
-      ...pet,
-      mood: Math.min(100, pet.mood + 2),
-      affection: Math.min(100, pet.affection + 1),
-      mode: "react",
-      modeStartedAt: now,
-    };
-    if (ballGame.score % 3 === 0) sayPetLine("click", 1200);
+    const rewarded = grantPetReward(
+      {
+        ...pet,
+        mood: Math.min(100, pet.mood + 2),
+        mode: "react",
+        modeStartedAt: now,
+      },
+      "ball",
+      now,
+    );
+    pet = rewarded.state;
+    announceReward(rewarded, false);
+    if (!rewarded.leveledUp && ballGame.score % 3 === 0) sayPetLine("click", 1200);
   } else if (Math.abs(dx) > 28 && pet.mode !== "react") {
     pet = {
       ...pet,

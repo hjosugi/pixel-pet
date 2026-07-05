@@ -63,6 +63,7 @@ npm run tauri:build
 - offline rule-based dialogue per pet pack
 - optional on-demand chat adapters: rule, Ollama, OpenAI
 - optional ball toss mini-game
+- persistent XP, level, affection, and reward items
 - idle / walk / sleep / react state machine
 - click reaction
 - short dialogue bubble
@@ -88,6 +89,7 @@ npm run tauri:build
 - Low-distraction mode cuts idle movement, suppresses glitch overlays, and raises self-initiated talk spacing to 15 minutes.
 - The focus timer supports 15, 25, and 45 minute rest reminder intervals, rewards completed intervals with small mood/affection gains, and rate-limits reminders.
 - The ball game raises the animation target to 20 FPS only while active, then returns to the normal low-FPS pet scheduler.
+- Focus mode and low-distraction mode reduce energy drain and stop mood drain while the user is busy.
 - Add `?debugTiming=1` in a browser preview, or run on localhost, to show the dev timing readout.
 
 ## Desktop shell notes
@@ -133,6 +135,11 @@ pauses the current session, the interval selector controls the rest reminder
 cadence, and completed intervals increase mood and affection without sending
 repeated reminders.
 
+Progression is stored under a versioned `progression.schemaVersion` object
+inside the pet state. XP, level, reward items, and reward cooldown history are
+normalized on load so old state files safely start at level 1. Each selected pet
+keeps separate mood, affection, XP, level, and reward inventory.
+
 Dialogue runs fully offline. Each pet pack provides short lines for click,
 idle, sleep, focus, late-night, and low-energy triggers in
 `manifest.json > personality.dialogue`; the runtime applies per-trigger
@@ -163,6 +170,11 @@ The `ball` button starts a short toss game in the transparent pet window. Click
 inside the canvas while the game is active to toss the ball; the pet will chase
 and react when it catches up. Press `stop`, let the ball settle, or wait 45
 seconds to return to normal idle behavior.
+
+Rewards are intentionally small and optional: explicit interaction gives tiny
+XP on a cooldown, focus intervals grant `focus-star` items, and ball catches can
+grant `play-spark` items. There is no XP decay or punishment for leaving the pet
+alone.
 
 ## Pet packs
 
