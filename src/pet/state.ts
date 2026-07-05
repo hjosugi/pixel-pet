@@ -14,6 +14,10 @@ export type PetCareMemory = {
   lastInteractionAt: number;
 };
 
+export type PetSettings = {
+  lowDistractionMode: boolean;
+};
+
 export type PetState = {
   id: string;
   name: string;
@@ -28,6 +32,7 @@ export type PetState = {
   lastInteractionAt: number;
   lastAutoTalkAt: number;
   petMemories: Record<string, PetCareMemory>;
+  settings: PetSettings;
 };
 
 const LEGACY_STORAGE_KEY = "pixel-pet.state.v1";
@@ -35,6 +40,9 @@ const VALID_MODES = new Set<PetMode>(["idle", "walk", "sleep", "react"]);
 const DEFAULT_PET: PetIdentity = {
   id: "cyber-cat-001",
   name: "NekoByte",
+};
+const DEFAULT_SETTINGS: PetSettings = {
+  lowDistractionMode: false,
 };
 
 export function createInitialState(identity: PetIdentity = DEFAULT_PET): PetState {
@@ -53,6 +61,7 @@ export function createInitialState(identity: PetIdentity = DEFAULT_PET): PetStat
     lastInteractionAt: now,
     lastAutoTalkAt: 0,
     petMemories: {},
+    settings: { ...DEFAULT_SETTINGS },
   };
 }
 
@@ -118,6 +127,7 @@ function normalizeState(raw: unknown): PetState | null {
     lastInteractionAt: finiteNumberOr(candidate.lastInteractionAt, Date.now()),
     lastAutoTalkAt: finiteNumberOr(candidate.lastAutoTalkAt, 0),
     petMemories: normalizePetMemories(candidate.petMemories),
+    settings: normalizeSettings(candidate.settings),
   };
 }
 
@@ -151,6 +161,16 @@ function normalizePetMemories(raw: unknown): Record<string, PetCareMemory> {
   }
 
   return memories;
+}
+
+function normalizeSettings(raw: unknown): PetSettings {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ...DEFAULT_SETTINGS };
+
+  const candidate = raw as Partial<PetSettings>;
+  return {
+    lowDistractionMode:
+      typeof candidate.lowDistractionMode === "boolean" ? candidate.lowDistractionMode : DEFAULT_SETTINGS.lowDistractionMode,
+  };
 }
 
 export function switchPetState(state: PetState, identity: PetIdentity): PetState {
@@ -192,16 +212,19 @@ export function stepPetState(state: PetState, dt: number): PetState {
   const now = Date.now();
   const next = { ...state };
   const modeAge = now - next.modeStartedAt;
+  const lowDistraction = next.settings.lowDistractionMode;
 
   next.energy = Math.max(0, Math.min(100, next.energy - dt * 0.18));
   next.mood = Math.max(0, Math.min(100, next.mood - dt * 0.04));
 
   if (next.mode === "walk") {
-    next.x += next.vx * dt;
+    const direction = next.vx < 0 ? -1 : 1;
+    const speed = lowDistraction ? Math.min(Math.abs(next.vx), 8) : Math.abs(next.vx);
+    next.x += direction * speed * dt;
     if (next.x < 76 || next.x > 226) {
       next.vx *= -1;
     }
-    if (modeAge > 5_000) switchMode(next, "idle");
+    if (modeAge > (lowDistraction ? 2_500 : 5_000)) switchMode(next, "idle");
   }
 
   if (next.mode === "sleep") {
@@ -216,8 +239,9 @@ export function stepPetState(state: PetState, dt: number): PetState {
   if (next.mode === "idle") {
     if (next.energy < 20) {
       switchMode(next, "sleep");
-    } else if (Math.random() < dt * 0.12) {
-      next.vx = Math.random() > 0.5 ? 18 : -18;
+    } else if (Math.random() < dt * (lowDistraction ? 0.025 : 0.12)) {
+      const speed = lowDistraction ? 8 : 18;
+      next.vx = Math.random() > 0.5 ? speed : -speed;
       switchMode(next, "walk");
     }
   }

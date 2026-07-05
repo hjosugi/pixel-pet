@@ -58,6 +58,7 @@ npm run tauri:build
 - free cyber cat spritesheet asset with procedural fallback
 - extra original free pet packs: cyber-penguin and kofun-friend
 - in-window pet picker with persistent selection
+- persisted low-distraction mode
 - idle / walk / sleep / react state machine
 - click reaction
 - short dialogue bubble
@@ -80,6 +81,7 @@ npm run tauri:build
 - React animation targets 12 FPS.
 - Sleep animation targets 4 FPS.
 - Hidden documents skip canvas drawing and run only a 5 second maintenance tick for state updates and saves.
+- Low-distraction mode cuts idle movement, suppresses glitch overlays, and raises self-initiated talk spacing to 15 minutes.
 - Add `?debugTiming=1` in a browser preview, or run on localhost, to show the dev timing readout.
 
 ## Desktop shell notes
@@ -111,6 +113,14 @@ as a fallback because Tauri commands are unavailable there.
 The active pet id is stored with the same state file. Each pet keeps its own
 mood, energy, and affection memory, while the window position and resident app
 settings stay shared across pet switches.
+
+Low-distraction mode is also stored in the state file. The in-window `quiet`
+button toggles it, and host integrations can dispatch a browser custom event to
+mirror an external focus-mode switch:
+
+```js
+window.dispatchEvent(new CustomEvent("pixel-pet:focus-mode", { detail: { enabled: true } }));
+```
 
 ## Pet packs
 

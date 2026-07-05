@@ -17,13 +17,14 @@ export class PixelPetRenderer {
 
   draw(pet: PetState, now: number) {
     const ctx = this.ctx;
+    const lowDistraction = pet.settings.lowDistractionMode;
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-    this.drawGrid(now);
+    this.drawGrid(now, lowDistraction);
 
     const t = now / 1000;
-    const bob = pet.mode === "sleep" ? 0 : Math.round(Math.sin(t * 5) * 1.5);
-    const glitch = pet.mode === "react" && Math.floor(t * 18) % 2 === 0;
+    const bob = pet.mode === "sleep" ? 0 : Math.round(Math.sin(t * (lowDistraction ? 3 : 5)) * (lowDistraction ? 0.7 : 1.5));
+    const glitch = !lowDistraction && pet.mode === "react" && Math.floor(t * 18) % 2 === 0;
     const pack = this.resolvePack(pet.id);
     const scale = pack?.scale ?? this.fallbackScale;
     const x = Math.round(pet.x / scale);
@@ -85,7 +86,7 @@ export class PixelPetRenderer {
     }
     this.ctx.restore();
 
-    if (pet.mode === "react" && Math.floor(now / 70) % 2 === 0) {
+    if (!pet.settings.lowDistractionMode && pet.mode === "react" && Math.floor(now / 70) % 2 === 0) {
       this.ctx.globalAlpha = 0.38;
       this.px(x + 1, y + 6, 28, 2, "#ff55f7");
       this.px(x + 5, y + 18, 25, 1, "#5cffea");
@@ -107,11 +108,11 @@ export class PixelPetRenderer {
     this.ctx.fillRect(x, y, w, h);
   }
 
-  private drawGrid(now: number) {
+  private drawGrid(now: number, lowDistraction: boolean) {
     const ctx = this.ctx;
     const phase = Math.floor(now / 80) % 18;
     ctx.save();
-    ctx.globalAlpha = 0.12;
+    ctx.globalAlpha = lowDistraction ? 0.05 : 0.12;
     ctx.strokeStyle = "#48ffe8";
     ctx.lineWidth = 1;
     for (let x = -phase; x < this.canvas.width; x += 18) {
@@ -120,7 +121,7 @@ export class PixelPetRenderer {
       ctx.lineTo(x + 80, this.canvas.height);
       ctx.stroke();
     }
-    ctx.globalAlpha = 0.08;
+    ctx.globalAlpha = lowDistraction ? 0.035 : 0.08;
     for (let y = 154; y < this.canvas.height; y += 14) {
       ctx.beginPath();
       ctx.moveTo(0, y);

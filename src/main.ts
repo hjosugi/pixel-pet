@@ -10,9 +10,10 @@ const speech = document.querySelector<HTMLDivElement>("#speech");
 const stateLabel = document.querySelector<HTMLSpanElement>("#state-label");
 const dragRegion = document.querySelector<HTMLDivElement>("#drag-region");
 const petSelector = document.querySelector<HTMLDivElement>("#pet-selector");
+const focusToggle = document.querySelector<HTMLButtonElement>("#focus-toggle");
 const app = document.querySelector<HTMLDivElement>("#app");
 
-if (!canvas || !speech || !stateLabel || !petSelector || !app) {
+if (!canvas || !speech || !stateLabel || !petSelector || !focusToggle || !app) {
   throw new Error("Pixel Pet boot failed: required DOM nodes were not found.");
 }
 
@@ -20,6 +21,7 @@ const petCanvas = canvas;
 const speechBubble = speech;
 const statusText = stateLabel;
 const selector = petSelector;
+const focusButton = focusToggle;
 const appRoot = app;
 const appWindow = getCurrentWindow();
 const renderer = new PixelPetRenderer(petCanvas);
@@ -39,6 +41,8 @@ const frameBudgetMs = {
 } as const;
 
 const hiddenMaintenanceIntervalMs = 5_000;
+const regularAutoTalkIntervalMs = 90_000;
+const lowDistractionAutoTalkIntervalMs = 15 * 60_000;
 const debugTimingEnabled =
   new URLSearchParams(window.location.search).get("debugTiming") === "1" ||
   window.location.hostname === "localhost" ||
@@ -64,11 +68,24 @@ function orderedPetPacks() {
   return [...petPacks].sort((a, b) => packOrder(a) - packOrder(b) || a.name.localeCompare(b.name));
 }
 
+function isLowDistractionActive() {
+  return pet.settings.lowDistractionMode;
+}
+
+function clampSpeechText(text: string) {
+  if (!isLowDistractionActive() || text.length <= 44) return text;
+  return `${text.slice(0, 41)}...`;
+}
+
+function speechDuration(durationMs: number) {
+  return isLowDistractionActive() ? Math.min(durationMs, 1600) : durationMs;
+}
+
 function say(text: string, durationMs = 2600) {
-  speechBubble.textContent = text;
+  speechBubble.textContent = clampSpeechText(text);
   speechBubble.classList.add("visible");
   window.clearTimeout(speechTimer);
-  speechTimer = window.setTimeout(() => speechBubble.classList.remove("visible"), durationMs);
+  speechTimer = window.setTimeout(() => speechBubble.classList.remove("visible"), speechDuration(durationMs));
 }
 
 function react(reason: "click" | "idle" | "focus") {
@@ -81,6 +98,10 @@ function react(reason: "click" | "idle" | "focus") {
 }
 
 petCanvas.addEventListener("click", () => react("click"));
+
+focusButton.addEventListener("click", () => {
+  setLowDistractionMode(!pet.settings.lowDistractionMode);
+});
 
 function renderPetSelector() {
   selector.replaceChildren();
@@ -106,6 +127,31 @@ function selectPet(pack: PetPack) {
   say(`${pack.name} online.`, 1600);
   void saveState(pet);
 }
+
+function setLowDistractionMode(enabled: boolean, silent = false) {
+  pet = {
+    ...pet,
+    settings: {
+      ...pet.settings,
+      lowDistractionMode: enabled,
+    },
+  };
+  if (enabled && pet.mode === "walk") {
+    pet.mode = "idle";
+    pet.modeStartedAt = Date.now();
+  }
+
+  applyLowDistractionUi();
+  updateStatus();
+  scheduleTick();
+  void saveState(pet);
+  if (!silent) say(enabled ? "quiet mode." : "normal mode.", 1300);
+}
+
+window.addEventListener("pixel-pet:focus-mode", (event) => {
+  const enabled = Boolean((event as CustomEvent<{ enabled?: unknown }>).detail?.enabled);
+  setLowDistractionMode(enabled);
+});
 
 dragRegion?.addEventListener("mousedown", async (event) => {
   if (event.buttons !== 1) return;
@@ -135,7 +181,8 @@ function updateTimingReadout(now: number, dt: number, rendered: boolean) {
 }
 
 function updateStatus() {
-  statusText.textContent = `${pet.name} / ${pet.mode} / mood ${Math.round(pet.mood)}`;
+  const modeLabel = isLowDistractionActive() ? "quiet" : pet.mode;
+  statusText.textContent = `${pet.name} / ${modeLabel} / mood ${Math.round(pet.mood)}`;
 }
 
 function tick(now: number) {
@@ -147,7 +194,8 @@ function tick(now: number) {
   if (rendered) renderer.draw(pet, now);
   updateStatus();
 
-  if (rendered && now - pet.lastAutoTalkAt > 90_000 && pet.mode !== "sleep") {
+  const autoTalkIntervalMs = isLowDistractionActive() ? lowDistractionAutoTalkIntervalMs : regularAutoTalkIntervalMs;
+  if (rendered && now - pet.lastAutoTalkAt > autoTalkIntervalMs && pet.mode !== "sleep") {
     pet.lastAutoTalkAt = now;
     say(chooseLine(pet, "idle"), 2200);
   }
@@ -171,8 +219,15 @@ function normalizeLoadedPetState(state: PetState): PetState {
   return fallbackPack ? switchPetState(state, { id: fallbackPack.id, name: fallbackPack.name }) : state;
 }
 
+function applyLowDistractionUi() {
+  const enabled = isLowDistractionActive();
+  appRoot.classList.toggle("low-distraction", enabled);
+  focusButton.setAttribute("aria-pressed", String(enabled));
+}
+
 async function boot() {
   pet = normalizeLoadedPetState((await loadState()) ?? pet);
+  applyLowDistractionUi();
   renderer.draw(pet, performance.now());
   updateStatus();
   renderPetSelector();
