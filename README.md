@@ -61,6 +61,7 @@ npm run tauri:build
 - persisted low-distraction mode
 - local focus timer with configurable rest nudges
 - offline rule-based dialogue per pet pack
+- optional on-demand chat adapters: rule, Ollama, OpenAI
 - idle / walk / sleep / react state machine
 - click reaction
 - short dialogue bubble
@@ -134,6 +135,25 @@ Dialogue runs fully offline. Each pet pack provides short lines for click,
 idle, sleep, focus, late-night, and low-energy triggers in
 `manifest.json > personality.dialogue`; the runtime applies per-trigger
 cooldowns and enforces the 44 character bubble limit.
+
+## Optional AI chat
+
+The pet never calls an LLM during idle animation, movement, focus nudges, or
+ambient dialogue. Networked adapters run only after a user submits text in the
+chat box.
+
+Providers:
+
+- `rule`: offline rule-based fallback, no network.
+- `ollama`: sends the prompt and short in-memory history to
+  `http://localhost:11434/api/chat` with model `llama3.2`.
+- `openai`: sends the prompt and short in-memory history to the OpenAI
+  Responses API using model `gpt-5.5`.
+
+The OpenAI key is requested with a browser prompt and kept in memory only; it is
+not written to the app state file. OpenAI usage may cost money on the account
+that owns the API key. Adapter timeouts, missing keys, unavailable Ollama, and
+API failures fall back to rule-based dialogue without breaking pet behavior.
 
 ## Pet packs
 

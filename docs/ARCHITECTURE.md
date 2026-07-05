@@ -27,6 +27,7 @@ TypeScript / Canvas
 - state machine
 - dialogue bubble
 - interactions
+- on-demand chat adapter dispatch
 - future mini-games
 ```
 
@@ -67,3 +68,8 @@ RuleBasedAiAdapter
 OllamaAiAdapter
 OpenAiAdapter
 ```
+
+The adapter path is explicit-user-action only: idle animation, movement,
+ambient dialogue, and focus nudges never call an LLM. The browser keeps a short
+in-memory message history and falls back to rule-based dialogue on timeout,
+missing credentials, local Ollama failures, or cloud API failures.

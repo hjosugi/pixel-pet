@@ -1,17 +1,20 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./style.css";
 import {
+  AI_PROVIDERS,
   FOCUS_REMINDER_INTERVALS,
   createInitialState,
   loadState,
   saveState,
   stepPetState,
   switchPetState,
+  type AiProviderId,
   type FocusReminderIntervalMinutes,
   type PetState,
 } from "./pet/state";
+import { AI_HISTORY_LIMIT, askPetAi, type AiChatMessage } from "./pet/ai";
 import { PET_DIALOGUE_MAX_CHARS, chooseLine, type DialogueReason } from "./pet/dialogue";
-import { listPetPacks, type PetPack } from "./pet/packs";
+import { getPetPack, listPetPacks, type PetPack } from "./pet/packs";
 import { PixelPetRenderer } from "./pet/renderer";
 
 const canvas = document.querySelector<HTMLCanvasElement>("#pet-canvas");
@@ -23,9 +26,27 @@ const focusToggle = document.querySelector<HTMLButtonElement>("#focus-toggle");
 const focusTimerToggle = document.querySelector<HTMLButtonElement>("#focus-timer-toggle");
 const focusInterval = document.querySelector<HTMLSelectElement>("#focus-interval");
 const focusClock = document.querySelector<HTMLSpanElement>("#focus-clock");
+const chatPanel = document.querySelector<HTMLFormElement>("#chat-panel");
+const chatInput = document.querySelector<HTMLInputElement>("#chat-input");
+const chatSend = document.querySelector<HTMLButtonElement>("#chat-send");
+const aiProvider = document.querySelector<HTMLSelectElement>("#ai-provider");
 const app = document.querySelector<HTMLDivElement>("#app");
 
-if (!canvas || !speech || !stateLabel || !petSelector || !focusToggle || !focusTimerToggle || !focusInterval || !focusClock || !app) {
+if (
+  !canvas ||
+  !speech ||
+  !stateLabel ||
+  !petSelector ||
+  !focusToggle ||
+  !focusTimerToggle ||
+  !focusInterval ||
+  !focusClock ||
+  !chatPanel ||
+  !chatInput ||
+  !chatSend ||
+  !aiProvider ||
+  !app
+) {
   throw new Error("Pixel Pet boot failed: required DOM nodes were not found.");
 }
 
@@ -37,6 +58,10 @@ const focusButton = focusToggle;
 const focusTimerButton = focusTimerToggle;
 const focusIntervalSelect = focusInterval;
 const focusClockLabel = focusClock;
+const chatForm = chatPanel;
+const chatTextInput = chatInput;
+const chatSendButton = chatSend;
+const aiProviderSelect = aiProvider;
 const appRoot = app;
 const appWindow = getCurrentWindow();
 const renderer = new PixelPetRenderer(petCanvas);
@@ -47,6 +72,9 @@ let lastSavedAt = 0;
 let lastReadoutAt = 0;
 let schedulerTimer: number | undefined;
 let speechTimer: number | undefined;
+let aiInFlight = false;
+let openAiApiKey: string | null = null;
+let chatHistory: AiChatMessage[] = [];
 
 const frameBudgetMs = {
   idle: 1000 / 10,
@@ -162,6 +190,26 @@ focusIntervalSelect.addEventListener("change", () => {
   say(`${minutes}m cycle.`, 1200);
 });
 
+aiProviderSelect.addEventListener("change", () => {
+  const provider = aiProviderSelect.value;
+  if (!isAiProvider(provider)) return;
+  pet = {
+    ...pet,
+    settings: {
+      ...pet.settings,
+      aiProvider: provider,
+    },
+  };
+  renderAiControls();
+  void saveState(pet);
+  say(`${provider} chat.`, 1200);
+});
+
+chatForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void sendChatMessage(chatTextInput.value);
+});
+
 function renderPetSelector() {
   selector.replaceChildren();
 
@@ -236,6 +284,75 @@ function renderFocusIntervalOptions() {
     option.value = String(minutes);
     option.textContent = `${minutes}m`;
     focusIntervalSelect.append(option);
+  }
+}
+
+function isAiProvider(value: string): value is AiProviderId {
+  return AI_PROVIDERS.includes(value as AiProviderId);
+}
+
+function renderAiProviderOptions() {
+  aiProviderSelect.replaceChildren();
+  for (const provider of AI_PROVIDERS) {
+    const option = document.createElement("option");
+    option.value = provider;
+    option.textContent = provider;
+    aiProviderSelect.append(option);
+  }
+}
+
+function renderAiControls() {
+  aiProviderSelect.value = pet.settings.aiProvider;
+  chatTextInput.disabled = aiInFlight;
+  chatSendButton.disabled = aiInFlight;
+}
+
+function requestOpenAiApiKey() {
+  if (openAiApiKey) return openAiApiKey;
+  const value = window.prompt("OpenAI API key (kept in memory only)");
+  if (!value?.trim()) return null;
+  openAiApiKey = value.trim();
+  return openAiApiKey;
+}
+
+async function sendChatMessage(rawText: string) {
+  const text = rawText.trim();
+  if (!text || aiInFlight) return;
+
+  aiInFlight = true;
+  chatTextInput.value = "";
+  renderAiControls();
+
+  const provider = pet.settings.aiProvider;
+  const openAiKey = provider === "openai" ? requestOpenAiApiKey() : null;
+  pet = {
+    ...pet,
+    lastInteractionAt: Date.now(),
+    mode: "react",
+    modeStartedAt: Date.now(),
+  };
+  say("...", 1000);
+
+  const requestHistory = chatHistory.slice(-AI_HISTORY_LIMIT);
+  const userMessage: AiChatMessage = { role: "user", content: text };
+  chatHistory = [...requestHistory, userMessage].slice(-AI_HISTORY_LIMIT);
+
+  try {
+    const reply = await askPetAi(provider, text, {
+      pet,
+      pack: getPetPack(pet.id) ?? null,
+      history: requestHistory,
+      openAiApiKey: openAiKey ?? undefined,
+    });
+    const assistantMessage: AiChatMessage = { role: "assistant", content: reply };
+    chatHistory = [...chatHistory, assistantMessage].slice(-AI_HISTORY_LIMIT);
+    say(reply, 3200);
+  } catch {
+    if (!sayPetLine("click", 1800)) say("今は短くいこう。", 1800);
+  } finally {
+    aiInFlight = false;
+    renderAiControls();
+    void saveState(pet);
   }
 }
 
@@ -364,7 +481,9 @@ async function boot() {
   pet = normalizeLoadedPetState((await loadState()) ?? pet);
   applyLowDistractionUi();
   renderFocusIntervalOptions();
+  renderAiProviderOptions();
   renderFocusTimer();
+  renderAiControls();
   renderer.draw(pet, performance.now());
   updateStatus();
   renderPetSelector();

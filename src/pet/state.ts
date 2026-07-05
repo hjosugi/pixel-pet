@@ -16,7 +16,11 @@ export type PetCareMemory = {
 
 export type PetSettings = {
   lowDistractionMode: boolean;
+  aiProvider: AiProviderId;
 };
+
+export const AI_PROVIDERS = ["rule", "ollama", "openai"] as const;
+export type AiProviderId = (typeof AI_PROVIDERS)[number];
 
 export const FOCUS_REMINDER_INTERVALS = [15, 25, 45] as const;
 export type FocusReminderIntervalMinutes = (typeof FOCUS_REMINDER_INTERVALS)[number];
@@ -57,6 +61,7 @@ const DEFAULT_PET: PetIdentity = {
 };
 const DEFAULT_SETTINGS: PetSettings = {
   lowDistractionMode: false,
+  aiProvider: "rule",
 };
 const DEFAULT_FOCUS_TIMER: FocusTimerState = {
   running: false,
@@ -195,7 +200,14 @@ function normalizeSettings(raw: unknown): PetSettings {
   return {
     lowDistractionMode:
       typeof candidate.lowDistractionMode === "boolean" ? candidate.lowDistractionMode : DEFAULT_SETTINGS.lowDistractionMode,
+    aiProvider: normalizeAiProvider(candidate.aiProvider),
   };
+}
+
+function normalizeAiProvider(value: unknown): AiProviderId {
+  return typeof value === "string" && AI_PROVIDERS.includes(value as AiProviderId)
+    ? (value as AiProviderId)
+    : DEFAULT_SETTINGS.aiProvider;
 }
 
 function normalizeFocusTimer(raw: unknown): FocusTimerState {

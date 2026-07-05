@@ -16,6 +16,11 @@
       </div>
       <canvas id="pet-canvas" width="320" height="220" aria-label="Cyber pixel pet"></canvas>
       <div id="speech" aria-live="polite"></div>
+      <form id="chat-panel" aria-label="Talk to pet">
+        <select id="ai-provider" aria-label="AI provider" title="AI provider"></select>
+        <input id="chat-input" type="text" maxlength="120" autocomplete="off" aria-label="Talk message" placeholder="talk" />
+        <button id="chat-send" type="submit" title="Send message">send</button>
+      </form>
       <div id="pet-selector" aria-label="Choose pet"></div>
       <div id="status-panel">
         <span id="mood-dot"></span>
