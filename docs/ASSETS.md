@@ -24,6 +24,74 @@ Regenerate them with:
 npm run assets:generate
 ```
 
+Check the full asset pipeline with:
+
+```bash
+npm run assets:check
+```
+
+That command regenerates placeholder sheets, validates every pet pack, and then
+fails if generation changed committed files. This keeps the placeholder art
+reproducible while still catching broken hand-authored packs.
+
+## Sprite authoring pipeline
+
+Pet packs live in `assets/pets/<pack-slug>/`. Keep the slug lowercase
+kebab-case, for example `cyber-cat` or `kofun-friend`.
+
+Each pack must include:
+
+```txt
+manifest.json
+spritesheet.json
+spritesheet.png
+```
+
+Optional source files, such as `source.aseprite`, can live beside those files,
+but the runtime only loads the three files above.
+
+### Aseprite export convention
+
+Use a single horizontal spritesheet grid:
+
+```txt
+row 0: idle
+row 1: walk
+row 2: sleep
+row 3: react
+```
+
+Supported frame sizes are `32x32` and `48x48`. All frames in a pack must use the
+same size. Keep frames left-to-right in each row, then export a PNG named
+`spritesheet.png`.
+
+Default timing:
+
+```txt
+idle:  8 fps, loops
+walk: 10 fps, loops
+sleep: 4 fps, loops
+react: 12 fps, does not loop
+```
+
+`manifest.json` declares the pet id, display name, frame size, scale, asset file
+names, and expected FPS/loop values. `spritesheet.json` declares the PNG frame
+size, grid rows/columns, animation row, frame indexes, FPS, and loop flag.
+
+For a `48x48` pack with four columns and four rows, the PNG must be `192x192`.
+Set both `manifest.size.base` and `spritesheet.json.frame.width/height` to `48`.
+
+Before committing a new pack or replacing generated art, run:
+
+```bash
+npm run assets:validate
+npm run assets:check
+```
+
+Validation catches missing `manifest.json`, missing `spritesheet.png`, missing
+`spritesheet.json`, unsupported frame sizes, PNG dimension mismatches, missing
+animation rows, invalid frame indexes, and manifest/metadata FPS mismatches.
+
 ## Kofun Friends
 
 Project direction: Kofun Friends art may be used as-is for the `kofun-friend`
