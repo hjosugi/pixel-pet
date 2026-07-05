@@ -57,10 +57,11 @@ npm run tauri:build
 - procedural cyber cat pixel drawing
 - free cyber cat spritesheet asset with procedural fallback
 - extra original free pet packs: cyber-penguin and kofun-friend
+- in-window pet picker with persistent selection
 - idle / walk / sleep / react state machine
 - click reaction
 - short dialogue bubble
-- localStorage state persistence
+- desktop app-data state persistence with browser-preview fallback
 ```
 
 ## Important notes
@@ -106,6 +107,10 @@ Typical local debug paths:
 Existing browser-preview `localStorage` state is migrated into the desktop state
 file on first successful load. Plain browser previews still use `localStorage`
 as a fallback because Tauri commands are unavailable there.
+
+The active pet id is stored with the same state file. Each pet keeps its own
+mood, energy, and affection memory, while the window position and resident app
+settings stay shared across pet switches.
 
 ## Pet packs
 

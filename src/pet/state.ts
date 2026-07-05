@@ -2,6 +2,18 @@ import { invoke } from "@tauri-apps/api/core";
 
 export type PetMode = "idle" | "walk" | "sleep" | "react";
 
+export type PetIdentity = {
+  id: string;
+  name: string;
+};
+
+export type PetCareMemory = {
+  mood: number;
+  energy: number;
+  affection: number;
+  lastInteractionAt: number;
+};
+
 export type PetState = {
   id: string;
   name: string;
@@ -15,25 +27,32 @@ export type PetState = {
   affection: number;
   lastInteractionAt: number;
   lastAutoTalkAt: number;
+  petMemories: Record<string, PetCareMemory>;
 };
 
 const LEGACY_STORAGE_KEY = "pixel-pet.state.v1";
 const VALID_MODES = new Set<PetMode>(["idle", "walk", "sleep", "react"]);
+const DEFAULT_PET: PetIdentity = {
+  id: "cyber-cat-001",
+  name: "NekoByte",
+};
 
-export function createInitialState(): PetState {
+export function createInitialState(identity: PetIdentity = DEFAULT_PET): PetState {
+  const now = Date.now();
   return {
-    id: "cyber-cat-001",
-    name: "NekoByte",
+    id: identity.id,
+    name: identity.name,
     mode: "idle",
-    modeStartedAt: Date.now(),
+    modeStartedAt: now,
     x: 146,
     y: 94,
     vx: 18,
     mood: 72,
     energy: 80,
     affection: 20,
-    lastInteractionAt: Date.now(),
+    lastInteractionAt: now,
     lastAutoTalkAt: 0,
+    petMemories: {},
   };
 }
 
@@ -98,6 +117,7 @@ function normalizeState(raw: unknown): PetState | null {
     affection: clamp(finiteNumberOr(candidate.affection, base.affection), 0, 100),
     lastInteractionAt: finiteNumberOr(candidate.lastInteractionAt, Date.now()),
     lastAutoTalkAt: finiteNumberOr(candidate.lastAutoTalkAt, 0),
+    petMemories: normalizePetMemories(candidate.petMemories),
   };
 }
 
@@ -111,6 +131,61 @@ function finiteNumberOr(value: unknown, fallback: number): number {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+function normalizePetMemories(raw: unknown): Record<string, PetCareMemory> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+
+  const memories: Record<string, PetCareMemory> = {};
+  for (const [petId, value] of Object.entries(raw)) {
+    if (typeof petId !== "string" || petId.trim().length === 0) continue;
+    if (!value || typeof value !== "object" || Array.isArray(value)) continue;
+
+    const candidate = value as Partial<PetCareMemory>;
+    memories[petId] = {
+      mood: clamp(finiteNumberOr(candidate.mood, 72), 0, 100),
+      energy: clamp(finiteNumberOr(candidate.energy, 80), 0, 100),
+      affection: clamp(finiteNumberOr(candidate.affection, 20), 0, 100),
+      lastInteractionAt: finiteNumberOr(candidate.lastInteractionAt, Date.now()),
+    };
+  }
+
+  return memories;
+}
+
+export function switchPetState(state: PetState, identity: PetIdentity): PetState {
+  if (state.id === identity.id) {
+    return { ...state, name: identity.name };
+  }
+
+  const now = Date.now();
+  const memories = {
+    ...state.petMemories,
+    [state.id]: careMemoryFromState(state),
+  };
+  const nextCare = memories[identity.id] ?? careMemoryFromState(createInitialState(identity));
+
+  return {
+    ...state,
+    id: identity.id,
+    name: identity.name,
+    mode: "react",
+    modeStartedAt: now,
+    mood: nextCare.mood,
+    energy: nextCare.energy,
+    affection: nextCare.affection,
+    lastInteractionAt: nextCare.lastInteractionAt,
+    petMemories: memories,
+  };
+}
+
+function careMemoryFromState(state: PetState): PetCareMemory {
+  return {
+    mood: state.mood,
+    energy: state.energy,
+    affection: state.affection,
+    lastInteractionAt: state.lastInteractionAt,
+  };
 }
 
 export function stepPetState(state: PetState, dt: number): PetState {
