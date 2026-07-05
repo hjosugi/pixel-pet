@@ -20,7 +20,7 @@ const statusText = stateLabel;
 const appRoot = app;
 const appWindow = getCurrentWindow();
 const renderer = new PixelPetRenderer(petCanvas);
-let pet = loadState() ?? createInitialState();
+let pet = createInitialState();
 let lastTick = performance.now();
 let lastSavedAt = 0;
 let lastReadoutAt = 0;
@@ -110,19 +110,25 @@ function tick(now: number) {
 
   if (now - lastSavedAt > 5_000) {
     lastSavedAt = now;
-    saveState(pet);
+    void saveState(pet);
   }
 
   updateTimingReadout(now, dt, rendered);
   scheduleTick();
 }
 
-say("pixel-pet online.", 1800);
-scheduleTick();
+async function boot() {
+  pet = (await loadState()) ?? pet;
+  renderer.draw(pet, performance.now());
+  say("pixel-pet online.", 1800);
+  scheduleTick();
+}
+
+void boot();
 
 document.addEventListener("visibilitychange", () => {
   lastTick = performance.now();
   scheduleTick();
 });
 
-window.addEventListener("beforeunload", () => saveState(pet));
+window.addEventListener("beforeunload", () => void saveState(pet));

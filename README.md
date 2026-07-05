@@ -90,6 +90,23 @@ npm run tauri:build
 - macOS transparency uses `macOSPrivateApi`, which is acceptable for this local prototype but not for App Store distribution.
 - Windows and Linux taskbar hiding depends on the desktop shell; the tray menu remains the fallback control surface.
 
+## State storage
+
+Desktop builds store pet state in the Tauri app data directory as
+`pet-state.v1.json`. The file contains a `schemaVersion` field and a `state`
+object. Bad JSON or unknown schema versions are ignored and the app falls back
+to defaults.
+
+Typical local debug paths:
+
+- macOS: `~/Library/Application Support/dev.local.pixel-pet/pet-state.v1.json`
+- Windows: `%APPDATA%\dev.local.pixel-pet\pet-state.v1.json`
+- Linux: `${XDG_DATA_HOME:-~/.local/share}/dev.local.pixel-pet/pet-state.v1.json`
+
+Existing browser-preview `localStorage` state is migrated into the desktop state
+file on first successful load. Plain browser previews still use `localStorage`
+as a fallback because Tauri commands are unavailable there.
+
 ## Next steps
 
 ```txt
