@@ -3,6 +3,8 @@ import "./style.css";
 import {
   AI_PROVIDERS,
   FOCUS_REMINDER_INTERVALS,
+  PET_MOTION_LEVELS,
+  PET_TALK_FREQUENCIES,
   createInitialState,
   loadState,
   saveState,
@@ -12,8 +14,10 @@ import {
   switchPetState,
   type AiProviderId,
   type FocusReminderIntervalMinutes,
+  type PetMotionLevel,
   type PetRewardResult,
   type PetState,
+  type PetTalkFrequency,
 } from "./pet/state";
 import { AI_HISTORY_LIMIT, askPetAi, type AiChatMessage } from "./pet/ai";
 import { createPetCapsule, importPetCapsule, serializePetCapsule } from "./pet/capsule";
@@ -35,9 +39,16 @@ const dragRegion = document.querySelector<HTMLDivElement>("#drag-region");
 const petSelector = document.querySelector<HTMLDivElement>("#pet-selector");
 const focusToggle = document.querySelector<HTMLButtonElement>("#focus-toggle");
 const ballToggle = document.querySelector<HTMLButtonElement>("#ball-toggle");
+const settingsToggle = document.querySelector<HTMLButtonElement>("#settings-toggle");
 const focusTimerToggle = document.querySelector<HTMLButtonElement>("#focus-timer-toggle");
 const focusInterval = document.querySelector<HTMLSelectElement>("#focus-interval");
 const focusClock = document.querySelector<HTMLSpanElement>("#focus-clock");
+const settingsPanel = document.querySelector<HTMLDivElement>("#settings-panel");
+const petVisibleToggle = document.querySelector<HTMLInputElement>("#pet-visible-toggle");
+const alwaysOnTopToggle = document.querySelector<HTMLInputElement>("#always-on-top-toggle");
+const autostartToggle = document.querySelector<HTMLInputElement>("#autostart-toggle");
+const talkFrequency = document.querySelector<HTMLSelectElement>("#talk-frequency");
+const motionLevel = document.querySelector<HTMLSelectElement>("#motion-level");
 const chatPanel = document.querySelector<HTMLFormElement>("#chat-panel");
 const chatInput = document.querySelector<HTMLInputElement>("#chat-input");
 const chatSend = document.querySelector<HTMLButtonElement>("#chat-send");
@@ -54,9 +65,16 @@ if (
   !petSelector ||
   !focusToggle ||
   !ballToggle ||
+  !settingsToggle ||
   !focusTimerToggle ||
   !focusInterval ||
   !focusClock ||
+  !settingsPanel ||
+  !petVisibleToggle ||
+  !alwaysOnTopToggle ||
+  !autostartToggle ||
+  !talkFrequency ||
+  !motionLevel ||
   !chatPanel ||
   !chatInput ||
   !chatSend ||
@@ -75,9 +93,16 @@ const statusText = stateLabel;
 const selector = petSelector;
 const focusButton = focusToggle;
 const ballButton = ballToggle;
+const settingsButton = settingsToggle;
 const focusTimerButton = focusTimerToggle;
 const focusIntervalSelect = focusInterval;
 const focusClockLabel = focusClock;
+const settingsPanelEl = settingsPanel;
+const petVisibleCheckbox = petVisibleToggle;
+const alwaysOnTopCheckbox = alwaysOnTopToggle;
+const autostartCheckbox = autostartToggle;
+const talkFrequencySelect = talkFrequency;
+const motionLevelSelect = motionLevel;
 const chatForm = chatPanel;
 const chatTextInput = chatInput;
 const chatSendButton = chatSend;
@@ -111,6 +136,11 @@ const hiddenMaintenanceIntervalMs = 5_000;
 const activeBallFrameIntervalMs = 1000 / 20;
 const regularAutoTalkIntervalMs = 90_000;
 const lowDistractionAutoTalkIntervalMs = 15 * 60_000;
+const autoTalkIntervalsMs: Record<PetTalkFrequency, number> = {
+  quiet: 10 * 60_000,
+  normal: regularAutoTalkIntervalMs,
+  chatty: 45_000,
+};
 const reminderSpamGuardMs = 60_000;
 const ballGameMaxMs = 45_000;
 const ballGroundY = 184;
@@ -158,6 +188,14 @@ function isLowDistractionActive() {
   return pet.settings.lowDistractionMode;
 }
 
+function isPetVisible() {
+  return pet.settings.petVisible;
+}
+
+function autoTalkIntervalMs() {
+  return isLowDistractionActive() ? lowDistractionAutoTalkIntervalMs : autoTalkIntervalsMs[pet.settings.talkFrequency];
+}
+
 function clampSpeechText(text: string) {
   if (text.length <= PET_DIALOGUE_MAX_CHARS) return text;
   return `${text.slice(0, PET_DIALOGUE_MAX_CHARS - 3)}...`;
@@ -168,6 +206,7 @@ function speechDuration(durationMs: number) {
 }
 
 function say(text: string, durationMs = 2600) {
+  if (!isPetVisible()) return;
   speechBubble.textContent = clampSpeechText(text);
   speechBubble.classList.add("visible");
   window.clearTimeout(speechTimer);
@@ -223,6 +262,35 @@ ballButton.addEventListener("click", () => {
   } else {
     startBallGame();
   }
+});
+
+settingsButton.addEventListener("click", () => {
+  setSettingsPanelOpen(settingsPanelEl.hidden);
+});
+
+petVisibleCheckbox.addEventListener("change", () => {
+  updatePetSettings({ petVisible: petVisibleCheckbox.checked });
+});
+
+alwaysOnTopCheckbox.addEventListener("change", () => {
+  updatePetSettings({ alwaysOnTop: alwaysOnTopCheckbox.checked });
+});
+
+autostartCheckbox.addEventListener("change", () => {
+  autostartCheckbox.checked = false;
+  updatePetSettings({ autostartRequested: false }, true);
+});
+
+talkFrequencySelect.addEventListener("change", () => {
+  const value = talkFrequencySelect.value;
+  if (!isTalkFrequency(value)) return;
+  updatePetSettings({ talkFrequency: value });
+});
+
+motionLevelSelect.addEventListener("change", () => {
+  const value = motionLevelSelect.value;
+  if (!isMotionLevel(value)) return;
+  updatePetSettings({ motionLevel: value });
 });
 
 focusTimerButton.addEventListener("click", () => {
@@ -281,6 +349,69 @@ capsuleFileInput.addEventListener("change", () => {
   if (!file) return;
   void importSelectedPetCapsule(file);
 });
+
+function setSettingsPanelOpen(open: boolean) {
+  settingsPanelEl.hidden = !open;
+  settingsButton.setAttribute("aria-expanded", String(open));
+}
+
+function updatePetSettings(settings: Partial<PetState["settings"]>, silent = false) {
+  pet = {
+    ...pet,
+    settings: {
+      ...pet.settings,
+      ...settings,
+      autostartRequested: false,
+    },
+  };
+
+  applyAppSettings();
+  updateStatus();
+  scheduleTick();
+  void saveState(pet);
+  if (!silent) say("settings saved.", 1000);
+}
+
+function renderSettingsOptions() {
+  talkFrequencySelect.replaceChildren();
+  for (const frequency of PET_TALK_FREQUENCIES) {
+    const option = document.createElement("option");
+    option.value = frequency;
+    option.textContent = frequency;
+    talkFrequencySelect.append(option);
+  }
+
+  motionLevelSelect.replaceChildren();
+  for (const level of PET_MOTION_LEVELS) {
+    const option = document.createElement("option");
+    option.value = level;
+    option.textContent = level;
+    motionLevelSelect.append(option);
+  }
+}
+
+function renderSettingsControls() {
+  petVisibleCheckbox.checked = pet.settings.petVisible;
+  alwaysOnTopCheckbox.checked = pet.settings.alwaysOnTop;
+  autostartCheckbox.checked = false;
+  autostartCheckbox.disabled = true;
+  talkFrequencySelect.value = pet.settings.talkFrequency;
+  motionLevelSelect.value = pet.settings.motionLevel;
+}
+
+function applyAppSettings() {
+  renderSettingsControls();
+  appRoot.classList.toggle("pet-hidden", !pet.settings.petVisible);
+  void applyNativeWindowSettings();
+}
+
+async function applyNativeWindowSettings() {
+  try {
+    await appWindow.setAlwaysOnTop(pet.settings.alwaysOnTop);
+  } catch {
+    // Browser preview and unsupported platforms can ignore native window settings.
+  }
+}
 
 function renderPetSelector() {
   selector.replaceChildren();
@@ -417,6 +548,14 @@ function isAiProvider(value: string): value is AiProviderId {
   return AI_PROVIDERS.includes(value as AiProviderId);
 }
 
+function isTalkFrequency(value: string): value is PetTalkFrequency {
+  return PET_TALK_FREQUENCIES.includes(value as PetTalkFrequency);
+}
+
+function isMotionLevel(value: string): value is PetMotionLevel {
+  return PET_MOTION_LEVELS.includes(value as PetMotionLevel);
+}
+
 function renderAiProviderOptions() {
   aiProviderSelect.replaceChildren();
   for (const provider of AI_PROVIDERS) {
@@ -534,6 +673,7 @@ dragRegion?.addEventListener("mousedown", async (event) => {
 });
 
 function targetFrameIntervalMs() {
+  if (!isPetVisible()) return document.hidden ? hiddenMaintenanceIntervalMs : 1000;
   if (ballGame.active && !document.hidden) return activeBallFrameIntervalMs;
   return document.hidden ? hiddenMaintenanceIntervalMs : frameBudgetMs[pet.mode];
 }
@@ -553,7 +693,7 @@ function updateTimingReadout(now: number, dt: number, rendered: boolean) {
 }
 
 function updateStatus() {
-  const modeLabel = ballGame.active ? `ball ${ballGame.score}` : isLowDistractionActive() ? "quiet" : pet.mode;
+  const modeLabel = !isPetVisible() ? "hidden" : ballGame.active ? `ball ${ballGame.score}` : isLowDistractionActive() ? "quiet" : pet.mode;
   statusText.textContent = `${pet.name} L${pet.progression.level} / ${modeLabel} / ${pet.progression.xp}xp`;
 }
 
@@ -680,18 +820,18 @@ function ambientDialogueReason(): DialogueReason {
 
 function tick(now: number) {
   const dt = Math.min(5, (now - lastTick) / 1000);
-  const rendered = !document.hidden;
+  const documentVisible = !document.hidden;
+  const rendered = documentVisible && isPetVisible();
   lastTick = now;
 
   pet = stepPetState(pet, dt);
   updateBallGame(dt);
-  updateFocusTimer(rendered);
+  updateFocusTimer(documentVisible);
   if (rendered) renderer.draw(pet, now, ballGame);
   updateStatus();
   renderFocusTimer();
 
-  const autoTalkIntervalMs = isLowDistractionActive() ? lowDistractionAutoTalkIntervalMs : regularAutoTalkIntervalMs;
-  if (rendered && now - pet.lastAutoTalkAt > autoTalkIntervalMs) {
+  if (rendered && now - pet.lastAutoTalkAt > autoTalkIntervalMs()) {
     pet.lastAutoTalkAt = now;
     sayPetLine(ambientDialogueReason(), 2200);
   }
@@ -724,6 +864,8 @@ function applyLowDistractionUi() {
 async function boot() {
   pet = normalizeLoadedPetState((await loadState()) ?? pet);
   applyLowDistractionUi();
+  renderSettingsOptions();
+  applyAppSettings();
   renderFocusIntervalOptions();
   renderAiProviderOptions();
   renderBallGameControls();

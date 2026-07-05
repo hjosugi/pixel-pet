@@ -18,10 +18,21 @@ export type PetCareMemory = {
 export type PetSettings = {
   lowDistractionMode: boolean;
   aiProvider: AiProviderId;
+  alwaysOnTop: boolean;
+  autostartRequested: boolean;
+  motionLevel: PetMotionLevel;
+  petVisible: boolean;
+  talkFrequency: PetTalkFrequency;
 };
 
 export const AI_PROVIDERS = ["rule", "ollama", "openai"] as const;
 export type AiProviderId = (typeof AI_PROVIDERS)[number];
+
+export const PET_MOTION_LEVELS = ["calm", "normal", "playful"] as const;
+export type PetMotionLevel = (typeof PET_MOTION_LEVELS)[number];
+
+export const PET_TALK_FREQUENCIES = ["quiet", "normal", "chatty"] as const;
+export type PetTalkFrequency = (typeof PET_TALK_FREQUENCIES)[number];
 
 export const FOCUS_REMINDER_INTERVALS = [15, 25, 45] as const;
 export type FocusReminderIntervalMinutes = (typeof FOCUS_REMINDER_INTERVALS)[number];
@@ -84,6 +95,11 @@ const DEFAULT_PET: PetIdentity = {
 const DEFAULT_SETTINGS: PetSettings = {
   lowDistractionMode: false,
   aiProvider: "rule",
+  alwaysOnTop: true,
+  autostartRequested: false,
+  motionLevel: "normal",
+  petVisible: true,
+  talkFrequency: "normal",
 };
 const DEFAULT_FOCUS_TIMER: FocusTimerState = {
   running: false,
@@ -243,6 +259,11 @@ function normalizeSettings(raw: unknown): PetSettings {
     lowDistractionMode:
       typeof candidate.lowDistractionMode === "boolean" ? candidate.lowDistractionMode : DEFAULT_SETTINGS.lowDistractionMode,
     aiProvider: normalizeAiProvider(candidate.aiProvider),
+    alwaysOnTop: typeof candidate.alwaysOnTop === "boolean" ? candidate.alwaysOnTop : DEFAULT_SETTINGS.alwaysOnTop,
+    autostartRequested: DEFAULT_SETTINGS.autostartRequested,
+    motionLevel: normalizeMotionLevel(candidate.motionLevel),
+    petVisible: typeof candidate.petVisible === "boolean" ? candidate.petVisible : DEFAULT_SETTINGS.petVisible,
+    talkFrequency: normalizeTalkFrequency(candidate.talkFrequency),
   };
 }
 
@@ -250,6 +271,18 @@ function normalizeAiProvider(value: unknown): AiProviderId {
   return typeof value === "string" && AI_PROVIDERS.includes(value as AiProviderId)
     ? (value as AiProviderId)
     : DEFAULT_SETTINGS.aiProvider;
+}
+
+function normalizeMotionLevel(value: unknown): PetMotionLevel {
+  return typeof value === "string" && PET_MOTION_LEVELS.includes(value as PetMotionLevel)
+    ? (value as PetMotionLevel)
+    : DEFAULT_SETTINGS.motionLevel;
+}
+
+function normalizeTalkFrequency(value: unknown): PetTalkFrequency {
+  return typeof value === "string" && PET_TALK_FREQUENCIES.includes(value as PetTalkFrequency)
+    ? (value as PetTalkFrequency)
+    : DEFAULT_SETTINGS.talkFrequency;
 }
 
 function normalizeFocusTimer(raw: unknown): FocusTimerState {
@@ -407,13 +440,15 @@ export function stepPetState(state: PetState, dt: number): PetState {
   const modeAge = now - next.modeStartedAt;
   const lowDistraction = next.settings.lowDistractionMode;
   const protectedFocus = next.focusTimer.running || lowDistraction;
+  const motionMultiplier =
+    next.settings.motionLevel === "calm" ? 0.55 : next.settings.motionLevel === "playful" ? 1.35 : 1;
 
   next.energy = Math.max(0, Math.min(100, next.energy - dt * (protectedFocus ? 0.05 : 0.18)));
   next.mood = Math.max(0, Math.min(100, next.mood - dt * (protectedFocus ? 0 : 0.04)));
 
   if (next.mode === "walk") {
     const direction = next.vx < 0 ? -1 : 1;
-    const speed = lowDistraction ? Math.min(Math.abs(next.vx), 8) : Math.abs(next.vx);
+    const speed = (lowDistraction ? Math.min(Math.abs(next.vx), 8) : Math.abs(next.vx)) * motionMultiplier;
     next.x += direction * speed * dt;
     if (next.x < 76 || next.x > 226) {
       next.vx *= -1;
@@ -433,8 +468,8 @@ export function stepPetState(state: PetState, dt: number): PetState {
   if (next.mode === "idle") {
     if (next.energy < 20) {
       switchMode(next, "sleep");
-    } else if (Math.random() < dt * (lowDistraction ? 0.025 : 0.12)) {
-      const speed = lowDistraction ? 8 : 18;
+    } else if (Math.random() < dt * (lowDistraction ? 0.025 : 0.12) * motionMultiplier) {
+      const speed = (lowDistraction ? 8 : 18) * motionMultiplier;
       next.vx = Math.random() > 0.5 ? speed : -speed;
       switchMode(next, "walk");
     }

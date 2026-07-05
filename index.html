@@ -10,10 +10,33 @@
       <div id="drag-region" data-tauri-drag-region title="Drag the window"></div>
       <button id="focus-toggle" type="button" aria-pressed="false" title="Low-distraction mode">quiet</button>
       <button id="ball-toggle" type="button" aria-pressed="false" title="Ball game">ball</button>
+      <button id="settings-toggle" type="button" aria-expanded="false" title="Settings">set</button>
       <div id="focus-panel" aria-label="Focus timer">
         <button id="focus-timer-toggle" type="button" aria-pressed="false" title="Focus timer">focus</button>
         <select id="focus-interval" aria-label="Rest reminder interval" title="Rest reminder interval"></select>
         <span id="focus-clock">00:00</span>
+      </div>
+      <div id="settings-panel" aria-label="Pet settings" hidden>
+        <label class="settings-check">
+          <input id="pet-visible-toggle" type="checkbox" />
+          <span>pet</span>
+        </label>
+        <label class="settings-check">
+          <input id="always-on-top-toggle" type="checkbox" />
+          <span>top</span>
+        </label>
+        <label class="settings-check disabled" title="Autostart needs a desktop autostart plugin before it can be enabled">
+          <input id="autostart-toggle" type="checkbox" disabled />
+          <span>start</span>
+        </label>
+        <label class="settings-field">
+          <span>talk</span>
+          <select id="talk-frequency" aria-label="Talk frequency"></select>
+        </label>
+        <label class="settings-field">
+          <span>move</span>
+          <select id="motion-level" aria-label="Motion level"></select>
+        </label>
       </div>
       <canvas id="pet-canvas" width="320" height="220" aria-label="Cyber pixel pet"></canvas>
       <div id="speech" aria-live="polite"></div>
