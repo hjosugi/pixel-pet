@@ -1,10 +1,12 @@
 # kofun-friend
 
-This folder contains an original free pixel pet pack.
+This folder contains the `kofun-friend` pet pack.
 
-The sprite sheet is generated for this repository and released under the
-repository MIT License. It is a placeholder pack for a small kofun-inspired
-desktop pet. It does not copy external Kofun Friends artwork.
+The current sprite sheet is generated for this repository and released under
+the repository MIT License.
+
+Project direction: Kofun Friends art may be used as-is here when the actual
+source files are added. Until then, the generated placeholder stays in place.
 
 Regenerate the default placeholder art with:
 
