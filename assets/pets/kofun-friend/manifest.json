@@ -1,0 +1,27 @@
+{
+  "id": "kofun-friend-001",
+  "name": "KofunBit",
+  "species": "kofun_friend",
+  "style": "cute pixel cyberpunk",
+  "size": {
+    "base": 32,
+    "scale": 4
+  },
+  "assets": {
+    "spritesheet": "spritesheet.png",
+    "metadata": "spritesheet.json",
+    "license": "MIT",
+    "source": "Original pixel art generated for this repository."
+  },
+  "animations": {
+    "idle": { "fps": 8, "loop": true },
+    "walk": { "fps": 10, "loop": true },
+    "sleep": { "fps": 4, "loop": true },
+    "react": { "fps": 12, "loop": false }
+  },
+  "personality": {
+    "tone": "gentle",
+    "talkFrequency": "low",
+    "role": "focus companion"
+  }
+}

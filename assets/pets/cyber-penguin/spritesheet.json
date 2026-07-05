@@ -1,0 +1,59 @@
+{
+  "image": "spritesheet.png",
+  "name": "PenByte",
+  "license": "Original pixel art created for pixel-pet. Released under the repository MIT License.",
+  "frame": {
+    "width": 32,
+    "height": 32
+  },
+  "layout": {
+    "columns": 4,
+    "rows": 4
+  },
+  "animations": {
+    "idle": {
+      "row": 0,
+      "frames": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "fps": 8,
+      "loop": true
+    },
+    "walk": {
+      "row": 1,
+      "frames": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "fps": 10,
+      "loop": true
+    },
+    "sleep": {
+      "row": 2,
+      "frames": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "fps": 4,
+      "loop": true
+    },
+    "react": {
+      "row": 3,
+      "frames": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "fps": 12,
+      "loop": false
+    }
+  }
+}

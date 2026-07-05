@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pixel Pet</title>
+  </head>
+  <body>
+    <div id="app" aria-label="Pixel Pet desktop companion">
+      <div id="drag-region" data-tauri-drag-region title="Drag the window"></div>
+      <canvas id="pet-canvas" width="320" height="220" aria-label="Cyber pixel pet"></canvas>
+      <div id="speech" aria-live="polite"></div>
+      <div id="status-panel">
+        <span id="mood-dot"></span>
+        <span id="state-label">booting</span>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
