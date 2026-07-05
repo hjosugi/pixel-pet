@@ -1,6 +1,15 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./style.css";
-import { createInitialState, loadState, saveState, stepPetState, switchPetState, type PetState } from "./pet/state";
+import {
+  FOCUS_REMINDER_INTERVALS,
+  createInitialState,
+  loadState,
+  saveState,
+  stepPetState,
+  switchPetState,
+  type FocusReminderIntervalMinutes,
+  type PetState,
+} from "./pet/state";
 import { chooseLine } from "./pet/dialogue";
 import { listPetPacks, type PetPack } from "./pet/packs";
 import { PixelPetRenderer } from "./pet/renderer";
@@ -11,9 +20,12 @@ const stateLabel = document.querySelector<HTMLSpanElement>("#state-label");
 const dragRegion = document.querySelector<HTMLDivElement>("#drag-region");
 const petSelector = document.querySelector<HTMLDivElement>("#pet-selector");
 const focusToggle = document.querySelector<HTMLButtonElement>("#focus-toggle");
+const focusTimerToggle = document.querySelector<HTMLButtonElement>("#focus-timer-toggle");
+const focusInterval = document.querySelector<HTMLSelectElement>("#focus-interval");
+const focusClock = document.querySelector<HTMLSpanElement>("#focus-clock");
 const app = document.querySelector<HTMLDivElement>("#app");
 
-if (!canvas || !speech || !stateLabel || !petSelector || !focusToggle || !app) {
+if (!canvas || !speech || !stateLabel || !petSelector || !focusToggle || !focusTimerToggle || !focusInterval || !focusClock || !app) {
   throw new Error("Pixel Pet boot failed: required DOM nodes were not found.");
 }
 
@@ -22,6 +34,9 @@ const speechBubble = speech;
 const statusText = stateLabel;
 const selector = petSelector;
 const focusButton = focusToggle;
+const focusTimerButton = focusTimerToggle;
+const focusIntervalSelect = focusInterval;
+const focusClockLabel = focusClock;
 const appRoot = app;
 const appWindow = getCurrentWindow();
 const renderer = new PixelPetRenderer(petCanvas);
@@ -43,6 +58,7 @@ const frameBudgetMs = {
 const hiddenMaintenanceIntervalMs = 5_000;
 const regularAutoTalkIntervalMs = 90_000;
 const lowDistractionAutoTalkIntervalMs = 15 * 60_000;
+const reminderSpamGuardMs = 60_000;
 const debugTimingEnabled =
   new URLSearchParams(window.location.search).get("debugTiming") === "1" ||
   window.location.hostname === "localhost" ||
@@ -88,6 +104,20 @@ function say(text: string, durationMs = 2600) {
   speechTimer = window.setTimeout(() => speechBubble.classList.remove("visible"), speechDuration(durationMs));
 }
 
+function focusElapsedMs(now = Date.now()) {
+  const timer = pet.focusTimer;
+  return timer.accumulatedMs + (timer.running ? Math.max(0, now - timer.startedAt) : 0);
+}
+
+function formatElapsed(ms: number) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60)
+    .toString()
+    .padStart(2, "0");
+  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+  return `${minutes}:${seconds}`;
+}
+
 function react(reason: "click" | "idle" | "focus") {
   pet.lastInteractionAt = Date.now();
   pet.mood = Math.min(100, pet.mood + 4);
@@ -101,6 +131,28 @@ petCanvas.addEventListener("click", () => react("click"));
 
 focusButton.addEventListener("click", () => {
   setLowDistractionMode(!pet.settings.lowDistractionMode);
+});
+
+focusTimerButton.addEventListener("click", () => {
+  setFocusTimerRunning(!pet.focusTimer.running);
+});
+
+focusIntervalSelect.addEventListener("change", () => {
+  const minutes = Number(focusIntervalSelect.value);
+  if (!isFocusInterval(minutes)) return;
+  const elapsed = focusElapsedMs();
+  pet = {
+    ...pet,
+    focusTimer: {
+      ...pet.focusTimer,
+      reminderIntervalMinutes: minutes,
+      lastReminderElapsedMs: elapsed,
+      lastReminderAt: Date.now(),
+    },
+  };
+  renderFocusTimer();
+  void saveState(pet);
+  say(`${minutes}m cycle.`, 1200);
 });
 
 function renderPetSelector() {
@@ -148,6 +200,38 @@ function setLowDistractionMode(enabled: boolean, silent = false) {
   if (!silent) say(enabled ? "quiet mode." : "normal mode.", 1300);
 }
 
+function setFocusTimerRunning(running: boolean) {
+  const now = Date.now();
+  const elapsed = focusElapsedMs(now);
+  pet = {
+    ...pet,
+    focusTimer: {
+      ...pet.focusTimer,
+      running,
+      startedAt: running ? now : 0,
+      accumulatedMs: elapsed,
+    },
+  };
+
+  renderFocusTimer(now);
+  void saveState(pet);
+  say(running ? "focus started." : "focus paused.", 1400);
+}
+
+function isFocusInterval(value: number): value is FocusReminderIntervalMinutes {
+  return FOCUS_REMINDER_INTERVALS.includes(value as FocusReminderIntervalMinutes);
+}
+
+function renderFocusIntervalOptions() {
+  focusIntervalSelect.replaceChildren();
+  for (const minutes of FOCUS_REMINDER_INTERVALS) {
+    const option = document.createElement("option");
+    option.value = String(minutes);
+    option.textContent = `${minutes}m`;
+    focusIntervalSelect.append(option);
+  }
+}
+
 window.addEventListener("pixel-pet:focus-mode", (event) => {
   const enabled = Boolean((event as CustomEvent<{ enabled?: unknown }>).detail?.enabled);
   setLowDistractionMode(enabled);
@@ -185,14 +269,50 @@ function updateStatus() {
   statusText.textContent = `${pet.name} / ${modeLabel} / mood ${Math.round(pet.mood)}`;
 }
 
+function renderFocusTimer(now = Date.now()) {
+  focusTimerButton.textContent = pet.focusTimer.running ? "stop" : "focus";
+  focusTimerButton.setAttribute("aria-pressed", String(pet.focusTimer.running));
+  focusIntervalSelect.value = String(pet.focusTimer.reminderIntervalMinutes);
+  focusClockLabel.textContent = formatElapsed(focusElapsedMs(now));
+}
+
+function updateFocusTimer(rendered: boolean) {
+  if (!pet.focusTimer.running || !rendered) return;
+
+  const now = Date.now();
+  const elapsed = focusElapsedMs(now);
+  const intervalMs = pet.focusTimer.reminderIntervalMinutes * 60_000;
+  const dueElapsed = Math.floor(elapsed / intervalMs) * intervalMs;
+  if (dueElapsed <= 0 || dueElapsed <= pet.focusTimer.lastReminderElapsedMs) return;
+  if (now - pet.focusTimer.lastReminderAt < reminderSpamGuardMs) return;
+
+  const completedDelta = Math.max(1, Math.floor((dueElapsed - pet.focusTimer.lastReminderElapsedMs) / intervalMs));
+  pet = {
+    ...pet,
+    mood: Math.min(100, pet.mood + 3),
+    affection: Math.min(100, pet.affection + 2),
+    mode: "react",
+    modeStartedAt: now,
+    focusTimer: {
+      ...pet.focusTimer,
+      lastReminderElapsedMs: dueElapsed,
+      lastReminderAt: now,
+      completedSessions: pet.focusTimer.completedSessions + completedDelta,
+    },
+  };
+  say(chooseLine(pet, "focus"), 1800);
+}
+
 function tick(now: number) {
   const dt = Math.min(5, (now - lastTick) / 1000);
   const rendered = !document.hidden;
   lastTick = now;
 
   pet = stepPetState(pet, dt);
+  updateFocusTimer(rendered);
   if (rendered) renderer.draw(pet, now);
   updateStatus();
+  renderFocusTimer();
 
   const autoTalkIntervalMs = isLowDistractionActive() ? lowDistractionAutoTalkIntervalMs : regularAutoTalkIntervalMs;
   if (rendered && now - pet.lastAutoTalkAt > autoTalkIntervalMs && pet.mode !== "sleep") {
@@ -228,6 +348,8 @@ function applyLowDistractionUi() {
 async function boot() {
   pet = normalizeLoadedPetState((await loadState()) ?? pet);
   applyLowDistractionUi();
+  renderFocusIntervalOptions();
+  renderFocusTimer();
   renderer.draw(pet, performance.now());
   updateStatus();
   renderPetSelector();

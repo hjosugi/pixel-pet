@@ -63,6 +63,67 @@ body,
   box-shadow: 0 0 8px rgba(92, 255, 234, 0.14), inset 0 0 12px rgba(92, 255, 234, 0.08);
 }
 
+#focus-panel {
+  position: absolute;
+  top: 35px;
+  left: 9px;
+  z-index: 8;
+  display: grid;
+  grid-template-columns: 50px 52px;
+  gap: 5px;
+  width: 107px;
+}
+
+#focus-timer-toggle,
+#focus-interval {
+  min-height: 22px;
+  border: 1px solid rgba(92, 255, 234, 0.28);
+  border-radius: 6px;
+  background: rgba(8, 10, 24, 0.42);
+  color: rgba(232, 255, 255, 0.76);
+  font: inherit;
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+#focus-timer-toggle {
+  padding: 3px 6px;
+  cursor: pointer;
+}
+
+#focus-interval {
+  padding: 2px 4px;
+}
+
+#focus-timer-toggle:hover,
+#focus-timer-toggle:focus-visible,
+#focus-interval:hover,
+#focus-interval:focus-visible {
+  border-color: rgba(92, 255, 234, 0.72);
+  color: rgba(244, 255, 255, 0.96);
+  outline: none;
+}
+
+#focus-timer-toggle[aria-pressed="true"] {
+  border-color: rgba(255, 208, 97, 0.74);
+  background: rgba(36, 28, 10, 0.62);
+  color: #ffffff;
+  box-shadow: 0 0 8px rgba(255, 208, 97, 0.16), inset 0 0 12px rgba(92, 255, 234, 0.06);
+}
+
+#focus-clock {
+  grid-column: 1 / -1;
+  min-height: 18px;
+  padding: 2px 6px;
+  border: 1px solid rgba(92, 255, 234, 0.2);
+  border-radius: 6px;
+  background: rgba(8, 10, 24, 0.36);
+  color: rgba(217, 247, 255, 0.72);
+  font-size: 9px;
+  line-height: 1.45;
+  text-align: center;
+}
+
 #pet-canvas {
   position: absolute;
   inset: 0;

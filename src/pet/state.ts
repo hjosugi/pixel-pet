@@ -18,6 +18,19 @@ export type PetSettings = {
   lowDistractionMode: boolean;
 };
 
+export const FOCUS_REMINDER_INTERVALS = [15, 25, 45] as const;
+export type FocusReminderIntervalMinutes = (typeof FOCUS_REMINDER_INTERVALS)[number];
+
+export type FocusTimerState = {
+  running: boolean;
+  startedAt: number;
+  accumulatedMs: number;
+  reminderIntervalMinutes: FocusReminderIntervalMinutes;
+  lastReminderElapsedMs: number;
+  lastReminderAt: number;
+  completedSessions: number;
+};
+
 export type PetState = {
   id: string;
   name: string;
@@ -33,6 +46,7 @@ export type PetState = {
   lastAutoTalkAt: number;
   petMemories: Record<string, PetCareMemory>;
   settings: PetSettings;
+  focusTimer: FocusTimerState;
 };
 
 const LEGACY_STORAGE_KEY = "pixel-pet.state.v1";
@@ -43,6 +57,15 @@ const DEFAULT_PET: PetIdentity = {
 };
 const DEFAULT_SETTINGS: PetSettings = {
   lowDistractionMode: false,
+};
+const DEFAULT_FOCUS_TIMER: FocusTimerState = {
+  running: false,
+  startedAt: 0,
+  accumulatedMs: 0,
+  reminderIntervalMinutes: 25,
+  lastReminderElapsedMs: 0,
+  lastReminderAt: 0,
+  completedSessions: 0,
 };
 
 export function createInitialState(identity: PetIdentity = DEFAULT_PET): PetState {
@@ -62,6 +85,7 @@ export function createInitialState(identity: PetIdentity = DEFAULT_PET): PetStat
     lastAutoTalkAt: 0,
     petMemories: {},
     settings: { ...DEFAULT_SETTINGS },
+    focusTimer: { ...DEFAULT_FOCUS_TIMER },
   };
 }
 
@@ -128,6 +152,7 @@ function normalizeState(raw: unknown): PetState | null {
     lastAutoTalkAt: finiteNumberOr(candidate.lastAutoTalkAt, 0),
     petMemories: normalizePetMemories(candidate.petMemories),
     settings: normalizeSettings(candidate.settings),
+    focusTimer: normalizeFocusTimer(candidate.focusTimer),
   };
 }
 
@@ -171,6 +196,27 @@ function normalizeSettings(raw: unknown): PetSettings {
     lowDistractionMode:
       typeof candidate.lowDistractionMode === "boolean" ? candidate.lowDistractionMode : DEFAULT_SETTINGS.lowDistractionMode,
   };
+}
+
+function normalizeFocusTimer(raw: unknown): FocusTimerState {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return { ...DEFAULT_FOCUS_TIMER };
+
+  const candidate = raw as Partial<FocusTimerState>;
+  return {
+    running: typeof candidate.running === "boolean" ? candidate.running : DEFAULT_FOCUS_TIMER.running,
+    startedAt: finiteNumberOr(candidate.startedAt, 0),
+    accumulatedMs: Math.max(0, finiteNumberOr(candidate.accumulatedMs, DEFAULT_FOCUS_TIMER.accumulatedMs)),
+    reminderIntervalMinutes: normalizeReminderInterval(candidate.reminderIntervalMinutes),
+    lastReminderElapsedMs: Math.max(0, finiteNumberOr(candidate.lastReminderElapsedMs, 0)),
+    lastReminderAt: finiteNumberOr(candidate.lastReminderAt, 0),
+    completedSessions: Math.max(0, Math.floor(finiteNumberOr(candidate.completedSessions, 0))),
+  };
+}
+
+function normalizeReminderInterval(value: unknown): FocusReminderIntervalMinutes {
+  return typeof value === "number" && FOCUS_REMINDER_INTERVALS.includes(value as FocusReminderIntervalMinutes)
+    ? (value as FocusReminderIntervalMinutes)
+    : DEFAULT_FOCUS_TIMER.reminderIntervalMinutes;
 }
 
 export function switchPetState(state: PetState, identity: PetIdentity): PetState {

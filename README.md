@@ -59,6 +59,7 @@ npm run tauri:build
 - extra original free pet packs: cyber-penguin and kofun-friend
 - in-window pet picker with persistent selection
 - persisted low-distraction mode
+- local focus timer with configurable rest nudges
 - idle / walk / sleep / react state machine
 - click reaction
 - short dialogue bubble
@@ -82,6 +83,7 @@ npm run tauri:build
 - Sleep animation targets 4 FPS.
 - Hidden documents skip canvas drawing and run only a 5 second maintenance tick for state updates and saves.
 - Low-distraction mode cuts idle movement, suppresses glitch overlays, and raises self-initiated talk spacing to 15 minutes.
+- The focus timer supports 15, 25, and 45 minute rest reminder intervals, rewards completed intervals with small mood/affection gains, and rate-limits reminders.
 - Add `?debugTiming=1` in a browser preview, or run on localhost, to show the dev timing readout.
 
 ## Desktop shell notes
@@ -121,6 +123,11 @@ mirror an external focus-mode switch:
 ```js
 window.dispatchEvent(new CustomEvent("pixel-pet:focus-mode", { detail: { enabled: true } }));
 ```
+
+The focus timer state is stored in the same file. The `focus` button starts or
+pauses the current session, the interval selector controls the rest reminder
+cadence, and completed intervals increase mood and affection without sending
+repeated reminders.
 
 ## Pet packs
 
