@@ -22,6 +22,14 @@
   "personality": {
     "tone": "calm",
     "talkFrequency": "low",
-    "role": "focus companion"
+    "role": "focus companion",
+    "dialogue": {
+      "click": ["ぺん、と集中。", "氷みたいに静かに。", "一歩だけ進もう。"],
+      "idle": ["画面の端で待機。", "手を温めよ。", "小休止も戦略。"],
+      "sleep": ["冷たい頭で休も。", "短く目を閉じよ。"],
+      "focus": ["いい滑り出し。", "区切って休もう。", "次は保存から。"],
+      "lateNight": ["夜風モード。", "今日はここまででもいい。"],
+      "lowEnergy": ["燃料を補給。", "水と肩回し。"]
+    }
   }
 }

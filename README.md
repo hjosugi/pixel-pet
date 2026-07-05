@@ -60,6 +60,7 @@ npm run tauri:build
 - in-window pet picker with persistent selection
 - persisted low-distraction mode
 - local focus timer with configurable rest nudges
+- offline rule-based dialogue per pet pack
 - idle / walk / sleep / react state machine
 - click reaction
 - short dialogue bubble
@@ -128,6 +129,11 @@ The focus timer state is stored in the same file. The `focus` button starts or
 pauses the current session, the interval selector controls the rest reminder
 cadence, and completed intervals increase mood and affection without sending
 repeated reminders.
+
+Dialogue runs fully offline. Each pet pack provides short lines for click,
+idle, sleep, focus, late-night, and low-energy triggers in
+`manifest.json > personality.dialogue`; the runtime applies per-trigger
+cooldowns and enforces the 44 character bubble limit.
 
 ## Pet packs
 

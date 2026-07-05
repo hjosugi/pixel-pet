@@ -10,7 +10,7 @@ import {
   type FocusReminderIntervalMinutes,
   type PetState,
 } from "./pet/state";
-import { chooseLine } from "./pet/dialogue";
+import { PET_DIALOGUE_MAX_CHARS, chooseLine, type DialogueReason } from "./pet/dialogue";
 import { listPetPacks, type PetPack } from "./pet/packs";
 import { PixelPetRenderer } from "./pet/renderer";
 
@@ -89,8 +89,8 @@ function isLowDistractionActive() {
 }
 
 function clampSpeechText(text: string) {
-  if (!isLowDistractionActive() || text.length <= 44) return text;
-  return `${text.slice(0, 41)}...`;
+  if (text.length <= PET_DIALOGUE_MAX_CHARS) return text;
+  return `${text.slice(0, PET_DIALOGUE_MAX_CHARS - 3)}...`;
 }
 
 function speechDuration(durationMs: number) {
@@ -102,6 +102,13 @@ function say(text: string, durationMs = 2600) {
   speechBubble.classList.add("visible");
   window.clearTimeout(speechTimer);
   speechTimer = window.setTimeout(() => speechBubble.classList.remove("visible"), speechDuration(durationMs));
+}
+
+function sayPetLine(reason: DialogueReason, durationMs = 2200) {
+  const line = chooseLine(pet, reason);
+  if (!line) return false;
+  say(line, durationMs);
+  return true;
 }
 
 function focusElapsedMs(now = Date.now()) {
@@ -118,13 +125,13 @@ function formatElapsed(ms: number) {
   return `${minutes}:${seconds}`;
 }
 
-function react(reason: "click" | "idle" | "focus") {
+function react(reason: DialogueReason) {
   pet.lastInteractionAt = Date.now();
   pet.mood = Math.min(100, pet.mood + 4);
   pet.energy = Math.max(0, pet.energy - 1);
   pet.mode = "react";
   pet.modeStartedAt = Date.now();
-  say(chooseLine(pet, reason));
+  sayPetLine(reason);
 }
 
 petCanvas.addEventListener("click", () => react("click"));
@@ -300,7 +307,15 @@ function updateFocusTimer(rendered: boolean) {
       completedSessions: pet.focusTimer.completedSessions + completedDelta,
     },
   };
-  say(chooseLine(pet, "focus"), 1800);
+  sayPetLine("focus", 1800);
+}
+
+function ambientDialogueReason(): DialogueReason {
+  const hour = new Date().getHours();
+  if (pet.energy < 24) return "lowEnergy";
+  if (pet.mode === "sleep") return "sleep";
+  if (hour >= 22 || hour < 5) return "lateNight";
+  return "idle";
 }
 
 function tick(now: number) {
@@ -315,9 +330,9 @@ function tick(now: number) {
   renderFocusTimer();
 
   const autoTalkIntervalMs = isLowDistractionActive() ? lowDistractionAutoTalkIntervalMs : regularAutoTalkIntervalMs;
-  if (rendered && now - pet.lastAutoTalkAt > autoTalkIntervalMs && pet.mode !== "sleep") {
+  if (rendered && now - pet.lastAutoTalkAt > autoTalkIntervalMs) {
     pet.lastAutoTalkAt = now;
-    say(chooseLine(pet, "idle"), 2200);
+    sayPetLine(ambientDialogueReason(), 2200);
   }
 
   if (now - lastSavedAt > 5_000) {

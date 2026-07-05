@@ -75,8 +75,9 @@ react: 12 fps, does not loop
 ```
 
 `manifest.json` declares the pet id, display name, frame size, scale, asset file
-names, and expected FPS/loop values. `spritesheet.json` declares the PNG frame
-size, grid rows/columns, animation row, frame indexes, FPS, and loop flag.
+names, expected FPS/loop values, and short rule-based dialogue lines under
+`personality.dialogue`. `spritesheet.json` declares the PNG frame size, grid
+rows/columns, animation row, frame indexes, FPS, and loop flag.
 
 For a `48x48` pack with four columns and four rows, the PNG must be `192x192`.
 Set both `manifest.size.base` and `spritesheet.json.frame.width/height` to `48`.
@@ -90,7 +91,8 @@ npm run assets:check
 
 Validation catches missing `manifest.json`, missing `spritesheet.png`, missing
 `spritesheet.json`, unsupported frame sizes, PNG dimension mismatches, missing
-animation rows, invalid frame indexes, and manifest/metadata FPS mismatches.
+animation rows, invalid frame indexes, manifest/metadata FPS mismatches, missing
+dialogue triggers, and dialogue lines longer than 44 characters.
 
 ## Kofun Friends
 

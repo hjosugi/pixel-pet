@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 const PETS_DIR = join(ROOT, "assets", "pets");
 const REQUIRED_MODES = ["idle", "walk", "sleep", "react"];
+const DIALOGUE_TRIGGERS = ["click", "idle", "sleep", "focus", "lateNight", "lowEnergy"];
+const DIALOGUE_MAX_CHARS = 44;
 const SUPPORTED_FRAME_SIZES = new Set([32, 48]);
 
 const errors = [];
@@ -95,7 +97,33 @@ function validateManifest(packName, manifest) {
     if (booleanField(animation.loop) === null) addError(packName, `manifest.animations.${mode}.loop must be boolean`);
   }
 
+  validateDialogue(packName, manifest);
+
   return { id, name, frameSize, scale, spritesheet, metadata };
+}
+
+function validateDialogue(packName, manifest) {
+  const dialogue = manifest.personality?.dialogue;
+  if (!dialogue || typeof dialogue !== "object" || Array.isArray(dialogue)) {
+    addError(packName, "manifest.personality.dialogue is required");
+    return;
+  }
+
+  for (const trigger of DIALOGUE_TRIGGERS) {
+    const lines = dialogue[trigger];
+    if (!Array.isArray(lines) || lines.length === 0) {
+      addError(packName, `manifest.personality.dialogue.${trigger} must be a non-empty array`);
+      continue;
+    }
+
+    for (const line of lines) {
+      if (typeof line !== "string" || line.trim().length === 0) {
+        addError(packName, `manifest.personality.dialogue.${trigger} must contain only non-empty strings`);
+      } else if (line.length > DIALOGUE_MAX_CHARS) {
+        addError(packName, `manifest.personality.dialogue.${trigger} line exceeds ${DIALOGUE_MAX_CHARS} chars`);
+      }
+    }
+  }
 }
 
 function validateMetadata(packName, manifest, metadata, pngSize) {

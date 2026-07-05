@@ -22,6 +22,14 @@
   "personality": {
     "tone": "gentle",
     "talkFrequency": "low",
-    "role": "focus companion"
+    "role": "focus companion",
+    "dialogue": {
+      "click": ["ここで見守るよ。", "石室くらい静かに。", "ひとつ積もう。"],
+      "idle": ["ゆっくり進めよ。", "手元を整えよ。", "小さな発掘から。"],
+      "sleep": ["土の中みたいに静か。", "少し休もう。"],
+      "focus": ["よく掘れたね。", "ここで休憩。", "記録を残そう。"],
+      "lateNight": ["夜の発掘は短めに。", "保存して眠ろう。"],
+      "lowEnergy": ["火を落とそう。", "休憩も保存。"]
+    }
   }
 }

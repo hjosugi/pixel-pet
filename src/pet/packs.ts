@@ -1,5 +1,9 @@
 import type { PetMode } from "./state";
 
+export const PET_DIALOGUE_MAX_CHARS = 44;
+export const DIALOGUE_TRIGGERS = ["click", "idle", "sleep", "focus", "lateNight", "lowEnergy"] as const;
+export type DialogueTrigger = (typeof DIALOGUE_TRIGGERS)[number];
+
 export type AnimationSpec = {
   row: number;
   fps: number;
@@ -14,6 +18,7 @@ export type PetPack = {
   frameSize: number;
   scale: number;
   animations: Record<PetMode, AnimationSpec>;
+  dialogue: Record<DialogueTrigger, string[]>;
 };
 
 type PetManifest = {
@@ -28,6 +33,9 @@ type PetManifest = {
     metadata?: unknown;
   };
   animations?: Partial<Record<PetMode, { fps?: unknown; loop?: unknown }>>;
+  personality?: {
+    dialogue?: Partial<Record<DialogueTrigger, unknown>>;
+  };
 };
 
 type SpritesheetMetadata = {
@@ -100,6 +108,8 @@ function buildPetPack(manifestPath: string, manifest: PetManifest): PetPack | nu
 
   const animations = buildAnimations(manifest, metadata, columns, rows);
   if (!animations) return null;
+  const dialogue = buildDialogue(manifest);
+  if (!dialogue) return null;
 
   return {
     id,
@@ -108,6 +118,7 @@ function buildPetPack(manifestPath: string, manifest: PetManifest): PetPack | nu
     frameSize,
     scale,
     animations,
+    dialogue,
   };
 }
 
@@ -161,4 +172,22 @@ function frameList(value: unknown, columns: number): number[] | null {
   if (!Array.isArray(value) || value.length === 0) return null;
   const frames = value.filter((frame): frame is number => Number.isInteger(frame) && frame >= 0 && frame < columns);
   return frames.length === value.length ? frames : null;
+}
+
+function buildDialogue(manifest: PetManifest): Record<DialogueTrigger, string[]> | null {
+  if (!manifest.personality?.dialogue || typeof manifest.personality.dialogue !== "object") return null;
+
+  const dialogue = {} as Record<DialogueTrigger, string[]>;
+  for (const trigger of DIALOGUE_TRIGGERS) {
+    const lines = manifest.personality.dialogue[trigger];
+    if (!Array.isArray(lines) || lines.length === 0) return null;
+
+    const normalized = lines.filter(
+      (line): line is string => typeof line === "string" && line.trim().length > 0 && line.length <= PET_DIALOGUE_MAX_CHARS,
+    );
+    if (normalized.length !== lines.length) return null;
+    dialogue[trigger] = normalized;
+  }
+
+  return dialogue;
 }

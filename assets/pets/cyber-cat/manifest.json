@@ -22,6 +22,14 @@
   "personality": {
     "tone": "calm",
     "talkFrequency": "low",
-    "role": "focus companion"
+    "role": "focus companion",
+    "dialogue": {
+      "click": ["ん。ここにいるよ。", "ログ前に深呼吸。", "小さく進めよ。"],
+      "idle": ["すみで見守り中。", "水を一口。", "次の一手だけ。"],
+      "sleep": ["少し休もう。", "まぶたを閉じて。"],
+      "focus": ["nice focus.", "テストして休憩。", "目をゆるめよ。"],
+      "lateNight": ["夜は短く進めよ。", "そろそろ保存しよ。"],
+      "lowEnergy": ["休むのも作業。", "肩を下げよ。"]
+    }
   }
 }
