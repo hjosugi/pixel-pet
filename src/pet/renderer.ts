@@ -1,29 +1,9 @@
 import type { PetMode, PetState } from "./state";
-
-type AnimationSpec = {
-  row: number;
-  fps: number;
-  frames: number[];
-  loop: boolean;
-};
-
-const PET_SPRITESHEETS: Record<string, string> = {
-  "cyber-cat-001": new URL("../../assets/pets/cyber-cat/spritesheet.png", import.meta.url).href,
-  "cyber-penguin-001": new URL("../../assets/pets/cyber-penguin/spritesheet.png", import.meta.url).href,
-  "kofun-friend-001": new URL("../../assets/pets/kofun-friend/spritesheet.png", import.meta.url).href,
-};
-
-const ANIMATIONS: Record<PetMode, AnimationSpec> = {
-  idle: { row: 0, frames: [0, 1, 2, 3], fps: 8, loop: true },
-  walk: { row: 1, frames: [0, 1, 2, 3], fps: 10, loop: true },
-  sleep: { row: 2, frames: [0, 1, 2, 3], fps: 4, loop: true },
-  react: { row: 3, frames: [0, 1, 2, 3], fps: 12, loop: false },
-};
+import { DEFAULT_PET_PACK_ID, getPetPack, type PetPack } from "./packs";
 
 export class PixelPetRenderer {
   private readonly ctx: CanvasRenderingContext2D;
-  private readonly scale = 4;
-  private readonly frameSize = 32;
+  private readonly fallbackScale = 4;
   private spriteSheet = new Image();
   private spriteReady = false;
   private currentSpriteId = "";
@@ -44,12 +24,14 @@ export class PixelPetRenderer {
     const t = now / 1000;
     const bob = pet.mode === "sleep" ? 0 : Math.round(Math.sin(t * 5) * 1.5);
     const glitch = pet.mode === "react" && Math.floor(t * 18) % 2 === 0;
-    const x = Math.round(pet.x / this.scale);
-    const y = Math.round((pet.y + bob) / this.scale);
+    const pack = this.resolvePack(pet.id);
+    const scale = pack?.scale ?? this.fallbackScale;
+    const x = Math.round(pet.x / scale);
+    const y = Math.round((pet.y + bob) / scale);
 
-    this.withPixelScale(() => {
+    this.withPixelScale(scale, () => {
       this.drawNeonShadow(x, y, glitch);
-      if (this.drawSpritePet(x, y, pet, now)) {
+      if (this.drawSpritePet(x, y, pet, now, pack)) {
         // Sprite rendered from the pet pack.
       } else {
         this.drawCat(x, y, pet, glitch, now);
@@ -59,11 +41,14 @@ export class PixelPetRenderer {
     });
   }
 
-  private ensureSpriteLoaded(petId: string) {
-    const src = PET_SPRITESHEETS[petId] ?? PET_SPRITESHEETS["cyber-cat-001"];
-    if (!src || this.currentSpriteId === petId) return;
+  private resolvePack(petId: string) {
+    return getPetPack(petId) ?? getPetPack(DEFAULT_PET_PACK_ID) ?? null;
+  }
 
-    this.currentSpriteId = petId;
+  private ensureSpriteLoaded(pack: PetPack | null) {
+    if (!pack || this.currentSpriteId === pack.id) return;
+
+    this.currentSpriteId = pack.id;
     this.spriteReady = false;
     this.spriteSheet = new Image();
     this.spriteSheet.onload = () => {
@@ -73,29 +58,30 @@ export class PixelPetRenderer {
     this.spriteSheet.onerror = () => {
       this.spriteReady = false;
     };
-    this.spriteSheet.src = src;
+    this.spriteSheet.src = pack.spriteUrl;
   }
 
-  private drawSpritePet(x: number, y: number, pet: PetState, now: number) {
-    this.ensureSpriteLoaded(pet.id);
-    if (!this.spriteReady) return false;
+  private drawSpritePet(x: number, y: number, pet: PetState, now: number, pack: PetPack | null) {
+    this.ensureSpriteLoaded(pack);
+    if (!pack || !this.spriteReady) return false;
 
-    const spec = ANIMATIONS[pet.mode];
+    const spec = pack.animations[pet.mode];
+    const frameSize = pack.frameSize;
     const elapsed = Math.max(0, Date.now() - pet.modeStartedAt) / 1000;
     const rawFrame = Math.floor(elapsed * spec.fps);
     const frameIndex = spec.loop ? rawFrame % spec.frames.length : Math.min(rawFrame, spec.frames.length - 1);
     const frame = spec.frames[frameIndex];
-    const sx = frame * this.frameSize;
-    const sy = spec.row * this.frameSize;
+    const sx = frame * frameSize;
+    const sy = spec.row * frameSize;
 
     this.ctx.save();
     this.ctx.imageSmoothingEnabled = false;
     if (pet.mode === "walk" && pet.vx < 0) {
-      this.ctx.translate(x + this.frameSize, y);
+      this.ctx.translate(x + frameSize, y);
       this.ctx.scale(-1, 1);
-      this.ctx.drawImage(this.spriteSheet, sx, sy, this.frameSize, this.frameSize, 0, 0, this.frameSize, this.frameSize);
+      this.ctx.drawImage(this.spriteSheet, sx, sy, frameSize, frameSize, 0, 0, frameSize, frameSize);
     } else {
-      this.ctx.drawImage(this.spriteSheet, sx, sy, this.frameSize, this.frameSize, x, y, this.frameSize, this.frameSize);
+      this.ctx.drawImage(this.spriteSheet, sx, sy, frameSize, frameSize, x, y, frameSize, frameSize);
     }
     this.ctx.restore();
 
@@ -109,9 +95,9 @@ export class PixelPetRenderer {
     return true;
   }
 
-  private withPixelScale(draw: () => void) {
+  private withPixelScale(scale: number, draw: () => void) {
     this.ctx.save();
-    this.ctx.scale(this.scale, this.scale);
+    this.ctx.scale(scale, scale);
     draw();
     this.ctx.restore();
   }

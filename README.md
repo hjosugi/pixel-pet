@@ -107,6 +107,23 @@ Existing browser-preview `localStorage` state is migrated into the desktop state
 file on first successful load. Plain browser previews still use `localStorage`
 as a fallback because Tauri commands are unavailable there.
 
+## Pet packs
+
+Pet packs live under `assets/pets/<pack>/` and are loaded from metadata at build
+time. A pack must include:
+
+```txt
+manifest.json
+spritesheet.json
+spritesheet.png
+```
+
+`manifest.json` defines the pet id, display name, asset file names, base frame
+size, render scale, and expected animation FPS/loop settings. `spritesheet.json`
+defines frame size, layout rows/columns, animation rows, frame lists, FPS, and
+loop behavior. Invalid or missing pack metadata is ignored and the renderer
+falls back to the default pack or the procedural pet renderer.
+
 ## Next steps
 
 ```txt
