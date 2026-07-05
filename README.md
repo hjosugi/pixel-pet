@@ -47,6 +47,9 @@ Build:
 npm run tauri:build
 ```
 
+Release build notes for Windows, macOS, and Linux are in
+`docs/RELEASE_BUILDS.md`.
+
 ## What works now
 
 ```txt
@@ -80,6 +83,8 @@ npm run tauri:build
 - Kofun Friends art is approved for the `kofun-friend` pet pack once the actual source files are added with a short source note.
 - See `docs/ASSETS.md` for the asset policy.
 - LLM is intentionally not always running. Keep AI on-demand only.
+- Generated desktop bundles live under `src-tauri/target` and are ignored by
+  git; the release workflow uploads them as artifacts.
 
 ## Performance budget
 
