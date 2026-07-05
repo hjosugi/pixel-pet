@@ -64,6 +64,7 @@ npm run tauri:build
 - optional on-demand chat adapters: rule, Ollama, OpenAI
 - optional ball toss mini-game
 - persistent XP, level, affection, and reward items
+- local pet capsule JSON export/import
 - idle / walk / sleep / react state machine
 - click reaction
 - short dialogue bubble
@@ -175,6 +176,29 @@ Rewards are intentionally small and optional: explicit interaction gives tiny
 XP on a cooldown, focus intervals grant `focus-star` items, and ball catches can
 grant `play-spark` items. There is no XP decay or punishment for leaving the pet
 alone.
+
+## Pet capsules
+
+The `export` button downloads the selected pet as a local JSON capsule. The
+schema includes:
+
+```txt
+schema
+schemaVersion
+compatibility.minAppVersion
+compatibility.features
+exportedAt
+pet.id / pet.packId / pet.name / pet.seed
+pet.traits
+pet.ownerNote
+pet.progression
+```
+
+The `import` button reads a local JSON capsule and validates the schema version,
+pack id, traits, and progression before changing state. Unknown packs, malformed
+JSON, unsupported schema versions, and invalid progression payloads fail safely
+with no state change. QR sharing is intentionally left as a follow-up layer on
+top of this JSON schema.
 
 ## Pet packs
 

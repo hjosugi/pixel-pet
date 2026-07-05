@@ -16,6 +16,7 @@ import {
   type PetState,
 } from "./pet/state";
 import { AI_HISTORY_LIMIT, askPetAi, type AiChatMessage } from "./pet/ai";
+import { createPetCapsule, importPetCapsule, serializePetCapsule } from "./pet/capsule";
 import { PET_DIALOGUE_MAX_CHARS, chooseLine, type DialogueReason } from "./pet/dialogue";
 import { getPetPack, listPetPacks, type PetPack } from "./pet/packs";
 import { PixelPetRenderer, type BallGameView } from "./pet/renderer";
@@ -41,6 +42,9 @@ const chatPanel = document.querySelector<HTMLFormElement>("#chat-panel");
 const chatInput = document.querySelector<HTMLInputElement>("#chat-input");
 const chatSend = document.querySelector<HTMLButtonElement>("#chat-send");
 const aiProvider = document.querySelector<HTMLSelectElement>("#ai-provider");
+const capsuleExport = document.querySelector<HTMLButtonElement>("#capsule-export");
+const capsuleImport = document.querySelector<HTMLButtonElement>("#capsule-import");
+const capsuleFile = document.querySelector<HTMLInputElement>("#capsule-file");
 const app = document.querySelector<HTMLDivElement>("#app");
 
 if (
@@ -57,6 +61,9 @@ if (
   !chatInput ||
   !chatSend ||
   !aiProvider ||
+  !capsuleExport ||
+  !capsuleImport ||
+  !capsuleFile ||
   !app
 ) {
   throw new Error("Pixel Pet boot failed: required DOM nodes were not found.");
@@ -75,6 +82,9 @@ const chatForm = chatPanel;
 const chatTextInput = chatInput;
 const chatSendButton = chatSend;
 const aiProviderSelect = aiProvider;
+const capsuleExportButton = capsuleExport;
+const capsuleImportButton = capsuleImport;
+const capsuleFileInput = capsuleFile;
 const appRoot = app;
 const appWindow = getCurrentWindow();
 const renderer = new PixelPetRenderer(petCanvas);
@@ -255,6 +265,21 @@ aiProviderSelect.addEventListener("change", () => {
 chatForm.addEventListener("submit", (event) => {
   event.preventDefault();
   void sendChatMessage(chatTextInput.value);
+});
+
+capsuleExportButton.addEventListener("click", () => {
+  exportCurrentPetCapsule();
+});
+
+capsuleImportButton.addEventListener("click", () => {
+  capsuleFileInput.value = "";
+  capsuleFileInput.click();
+});
+
+capsuleFileInput.addEventListener("change", () => {
+  const file = capsuleFileInput.files?.[0];
+  if (!file) return;
+  void importSelectedPetCapsule(file);
 });
 
 function renderPetSelector() {
@@ -456,6 +481,42 @@ async function sendChatMessage(rawText: string) {
     renderAiControls();
     void saveState(pet);
   }
+}
+
+function exportCurrentPetCapsule() {
+  const ownerNote = window.prompt("Owner note for this capsule", "") ?? "";
+  const capsule = createPetCapsule(pet, ownerNote);
+  const blob = new Blob([serializePetCapsule(capsule)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${pet.name.toLowerCase().replace(/[^a-z0-9]+/gi, "-") || "pixel-pet"}-capsule.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+  say("capsule saved.", 1200);
+}
+
+async function importSelectedPetCapsule(file: File) {
+  let raw: string;
+  try {
+    raw = await file.text();
+  } catch {
+    say("invalid capsule.", 1400);
+    return;
+  }
+
+  const imported = importPetCapsule(raw, pet, petPacks);
+  if (!imported) {
+    say("invalid capsule.", 1400);
+    return;
+  }
+
+  pet = imported;
+  updateStatus();
+  renderPetSelector();
+  renderer.draw(pet, performance.now(), ballGame);
+  void saveState(pet);
+  say(`${pet.name} imported.`, 1600);
 }
 
 window.addEventListener("pixel-pet:focus-mode", (event) => {
