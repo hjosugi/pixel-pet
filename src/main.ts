@@ -111,7 +111,7 @@ const capsuleExportButton = capsuleExport;
 const capsuleImportButton = capsuleImport;
 const capsuleFileInput = capsuleFile;
 const appRoot = app;
-const appWindow = getCurrentWindow();
+const appWindow = "__TAURI_INTERNALS__" in window ? getCurrentWindow() : null;
 const renderer = new PixelPetRenderer(petCanvas);
 const petPacks = listPetPacks();
 let pet = createInitialState();
@@ -410,6 +410,7 @@ function applyAppSettings() {
 }
 
 async function applyNativeWindowSettings() {
+  if (!appWindow) return;
   try {
     await appWindow.setAlwaysOnTop(pet.settings.alwaysOnTop);
   } catch {
@@ -669,6 +670,7 @@ window.addEventListener("pixel-pet:focus-mode", (event) => {
 
 dragRegion?.addEventListener("mousedown", async (event) => {
   if (event.buttons !== 1) return;
+  if (!appWindow) return;
   try {
     await appWindow.startDragging();
   } catch {
@@ -823,6 +825,7 @@ function ambientDialogueReason(): DialogueReason {
 }
 
 function tick(now: number) {
+  const wallTime = Date.now();
   const dt = Math.min(5, (now - lastTick) / 1000);
   const documentVisible = !document.hidden;
   const rendered = documentVisible && isPetVisible();
@@ -835,8 +838,8 @@ function tick(now: number) {
   updateStatus();
   renderFocusTimer();
 
-  if (rendered && now - pet.lastAutoTalkAt > autoTalkIntervalMs()) {
-    pet.lastAutoTalkAt = now;
+  if (rendered && wallTime - pet.lastAutoTalkAt > autoTalkIntervalMs()) {
+    pet.lastAutoTalkAt = wallTime;
     sayPetLine(ambientDialogueReason(), 2200);
   }
 

@@ -11,6 +11,9 @@
     "assets:check": "npm run assets:generate && npm run assets:validate && git diff --exit-code -- assets/pets",
     "dev": "vite --host 127.0.0.1",
     "build": "tsc && vite build",
+    "check": "npm run build && cargo check --manifest-path src-tauri/Cargo.toml",
+    "release:binary": "tauri build --no-bundle",
+    "release:bundle": "tauri build",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"

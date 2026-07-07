@@ -87,6 +87,7 @@ export type PetState = {
 };
 
 const LEGACY_STORAGE_KEY = "pixel-pet.state.v1";
+const WALL_TIME_MINIMUM = 1_000_000_000_000;
 const VALID_MODES = new Set<PetMode>(["idle", "walk", "sleep", "react"]);
 const DEFAULT_PET: PetIdentity = {
   id: "cyber-cat-001",
@@ -142,7 +143,7 @@ export function createInitialState(identity: PetIdentity = DEFAULT_PET): PetStat
     energy: 80,
     affection: 20,
     lastInteractionAt: now,
-    lastAutoTalkAt: 0,
+    lastAutoTalkAt: now,
     petMemories: {},
     settings: { ...DEFAULT_SETTINGS },
     focusTimer: { ...DEFAULT_FOCUS_TIMER },
@@ -196,21 +197,22 @@ function normalizeState(raw: unknown): PetState | null {
 
   const candidate = raw as Partial<PetState>;
   const base = createInitialState();
+  const now = Date.now();
   const mode = typeof candidate.mode === "string" && VALID_MODES.has(candidate.mode as PetMode) ? candidate.mode : base.mode;
 
   return {
     id: stringOr(candidate.id, base.id),
     name: stringOr(candidate.name, base.name),
     mode,
-    modeStartedAt: finiteNumberOr(candidate.modeStartedAt, Date.now()),
+    modeStartedAt: wallTimeOr(candidate.modeStartedAt, now),
     x: finiteNumberOr(candidate.x, base.x),
     y: finiteNumberOr(candidate.y, base.y),
     vx: finiteNumberOr(candidate.vx, base.vx),
     mood: clamp(finiteNumberOr(candidate.mood, base.mood), 0, 100),
     energy: clamp(finiteNumberOr(candidate.energy, base.energy), 0, 100),
     affection: clamp(finiteNumberOr(candidate.affection, base.affection), 0, 100),
-    lastInteractionAt: finiteNumberOr(candidate.lastInteractionAt, Date.now()),
-    lastAutoTalkAt: finiteNumberOr(candidate.lastAutoTalkAt, 0),
+    lastInteractionAt: wallTimeOr(candidate.lastInteractionAt, now),
+    lastAutoTalkAt: wallTimeOr(candidate.lastAutoTalkAt, now),
     petMemories: normalizePetMemories(candidate.petMemories),
     settings: normalizeSettings(candidate.settings),
     focusTimer: normalizeFocusTimer(candidate.focusTimer),
@@ -226,6 +228,11 @@ function finiteNumberOr(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
+function wallTimeOr(value: unknown, fallback: number): number {
+  const candidate = finiteNumberOr(value, fallback);
+  return candidate >= WALL_TIME_MINIMUM ? candidate : fallback;
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
@@ -239,11 +246,12 @@ function normalizePetMemories(raw: unknown): Record<string, PetCareMemory> {
     if (!value || typeof value !== "object" || Array.isArray(value)) continue;
 
     const candidate = value as Partial<PetCareMemory>;
+    const now = Date.now();
     memories[petId] = {
       mood: clamp(finiteNumberOr(candidate.mood, 72), 0, 100),
       energy: clamp(finiteNumberOr(candidate.energy, 80), 0, 100),
       affection: clamp(finiteNumberOr(candidate.affection, 20), 0, 100),
-      lastInteractionAt: finiteNumberOr(candidate.lastInteractionAt, Date.now()),
+      lastInteractionAt: wallTimeOr(candidate.lastInteractionAt, now),
       progression: normalizeProgression(candidate.progression),
     };
   }

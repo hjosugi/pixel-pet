@@ -32,7 +32,12 @@ Prerequisites:
 Node.js
 Rust
 Tauri v2 prerequisites for your OS
+Linux tray builds: AppIndicator/Ayatana AppIndicator library
 ```
+
+On Arch/CachyOS, install `libayatana-appindicator` before creating Linux
+bundles. On Debian/Ubuntu, install the Tauri Linux prerequisites plus
+`libayatana-appindicator3-dev`.
 
 Install and run:
 
@@ -49,6 +54,17 @@ npm run tauri:build
 
 Release build notes for Windows, macOS, and Linux are in
 `docs/RELEASE_BUILDS.md`.
+
+Local release checks:
+
+```bash
+npm run check
+npm run release:bundle
+```
+
+If a Linux machine cannot install AppIndicator system packages, use
+`npm run release:binary` to produce the release executable without installer
+bundles.
 
 ## What works now
 
