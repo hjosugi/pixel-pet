@@ -47,7 +47,7 @@ export type FocusTimerState = {
   completedSessions: number;
 };
 
-export type RewardReason = "interaction" | "focus" | "ball" | "chat";
+export type RewardReason = "interaction" | "focus" | "ball" | "chat" | "activity";
 export type RewardItemId = "focus-star" | "play-spark";
 export type RewardInventory = Record<RewardItemId, number>;
 
@@ -127,6 +127,7 @@ const rewardConfigs: Record<RewardReason, { xp: number; affection: number; coold
   focus: { xp: 15, affection: 3, cooldownMs: 0, item: "focus-star" },
   ball: { xp: 4, affection: 1, cooldownMs: 3_000, item: "play-spark" },
   chat: { xp: 2, affection: 1, cooldownMs: 30_000 },
+  activity: { xp: 3, affection: 1, cooldownMs: 30_000 },
 };
 
 export function createInitialState(identity: PetIdentity = DEFAULT_PET): PetState {

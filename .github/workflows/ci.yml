@@ -48,5 +48,8 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+      - name: Run unit tests
+        run: npm run test
+
       - name: Check Tauri Rust crate
         run: cargo check --manifest-path src-tauri/Cargo.toml --locked

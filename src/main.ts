@@ -22,7 +22,9 @@ import {
 import { AI_HISTORY_LIMIT, askPetAi, type AiChatMessage } from "./pet/ai";
 import { createPetCapsule, importPetCapsule, serializePetCapsule } from "./pet/capsule";
 import { PET_DIALOGUE_MAX_CHARS, chooseLine, type DialogueReason } from "./pet/dialogue";
-import { getPetPack, listPetPacks, type PetPack } from "./pet/packs";
+import { reactToActivity, type ActivityEvent } from "./pet/activity";
+import { customEventActivitySource, inboxActivitySource, type ActivitySource } from "./pet/activitySource";
+import { getPetPack, listPetPacks, loadExternalPetPacks, type PetPack } from "./pet/packs";
 import { PixelPetRenderer, type BallGameView } from "./pet/renderer";
 
 type BallGameState = BallGameView & {
@@ -112,8 +114,9 @@ const capsuleImportButton = capsuleImport;
 const capsuleFileInput = capsuleFile;
 const appRoot = app;
 const appWindow = "__TAURI_INTERNALS__" in window ? getCurrentWindow() : null;
+const isDesktop = appWindow !== null;
 const renderer = new PixelPetRenderer(petCanvas);
-const petPacks = listPetPacks();
+let petPacks = listPetPacks();
 let pet = createInitialState();
 let lastTick = performance.now();
 let lastSavedAt = 0;
@@ -668,6 +671,26 @@ window.addEventListener("pixel-pet:focus-mode", (event) => {
   setLowDistractionMode(enabled);
 });
 
+function applyPetActivity(activity: ActivityEvent) {
+  const reaction = reactToActivity(pet, activity);
+  if (!reaction.changed) return;
+
+  pet = reaction.state;
+  if (isPetVisible()) renderer.draw(pet, performance.now(), ballGame);
+  if (reaction.reward?.leveledUp) {
+    announceReward(reaction.reward, false);
+  } else if (reaction.say) {
+    say(reaction.say, 2200);
+  }
+  updateStatus();
+  scheduleTick();
+  void saveState(pet);
+}
+
+const activitySources: ActivitySource[] = [customEventActivitySource()];
+if (isDesktop) activitySources.push(inboxActivitySource());
+for (const source of activitySources) source.start(applyPetActivity);
+
 dragRegion?.addEventListener("mousedown", async (event) => {
   if (event.buttons !== 1) return;
   if (!appWindow) return;
@@ -869,6 +892,8 @@ function applyLowDistractionUi() {
 }
 
 async function boot() {
+  await loadExternalPetPacks();
+  petPacks = listPetPacks();
   pet = normalizeLoadedPetState((await loadState()) ?? pet);
   applyLowDistractionUi();
   renderSettingsOptions();

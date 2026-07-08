@@ -24,6 +24,21 @@ Rust tray menu
 Original free pixel spritesheet
 ```
 
+## Try it in a browser
+
+The pet runs in a plain browser too (native features fall back gracefully and
+state persists in `localStorage`). To try a built copy locally without the
+Rust/Tauri toolchain:
+
+```bash
+npm install
+npm run build
+npm run preview:web    # or: npx pixel-pet
+```
+
+The `.github/workflows/pages.yml` workflow also publishes this browser preview to
+GitHub Pages when Pages is enabled for the repository.
+
 ## Run
 
 Prerequisites:
@@ -77,6 +92,8 @@ bundles.
 - free cyber cat spritesheet asset with procedural fallback
 - extra original free pet packs: cyber-penguin and kofun-friend
 - in-window pet picker with persistent selection
+- community pet packs loaded at runtime from the desktop packs directory
+- activity events so a host can make the pet react to real work
 - persisted low-distraction mode
 - local focus timer with configurable rest nudges
 - offline rule-based dialogue per pet pack
@@ -169,6 +186,36 @@ idle, sleep, focus, late-night, and low-energy triggers in
 `manifest.json > personality.dialogue`; the runtime applies per-trigger
 cooldowns and enforces the 44 character bubble limit.
 
+## Activity events
+
+The pet can react to what you are actually doing. A host process (for example a
+Claude Code hook, an editor extension, or a git wrapper) reports normalized
+activity by dispatching a `pixel-pet:activity` browser custom event:
+
+```js
+window.dispatchEvent(new CustomEvent("pixel-pet:activity", {
+  detail: { kind: "done", source: "claude-code", label: "build" },
+}));
+```
+
+`kind` is one of `start`, `working`, `waiting`, `done`, or `error`. `source` and
+`label` are optional short strings. Unknown or malformed events are ignored.
+
+On desktop there is also a local file inbox: a host appends the same JSON
+objects (one per line) to `activity-inbox.jsonl` in the app data directory and
+the app drains it on a low-frequency poll. A ready-to-use Claude Code hook lives
+in `tools/claude-code-activity-hook.mjs`. Sources are agent-agnostic and modeled
+as an `ActivitySource` (`src/pet/activitySource.ts`), so git, an editor, or a
+non-Claude agent all fit the same shape. See `docs/ACTIVITY_HOOKS.md`.
+
+Reactions stay calm and consistent with the rest of the app: the pet plays a
+short `react`, shows a built-in line, and nudges mood. A `done` event grants a
+small activity reward on a cooldown; `error` never punishes. Each `kind` is
+rate-limited so a chatty host cannot spam the pet. This path never calls an LLM
+and never runs on the animation loop — it only responds to explicit events,
+mirroring the resident-app-stays-light principle. Low-distraction mode still
+shortens bubbles as usual.
+
 ## Optional AI chat
 
 The pet never calls an LLM during idle animation, movement, focus nudges, or
@@ -244,6 +291,28 @@ defines frame size, layout rows/columns, animation rows, frame lists, FPS, and
 loop behavior. Invalid or missing pack metadata is ignored and the renderer
 falls back to the default pack or the procedural pet renderer.
 
+### Community pet packs
+
+Beyond the bundled packs, the desktop app also loads packs at runtime from a
+`packs/` directory inside the app data directory, so anyone can distribute a pet
+without rebuilding the app:
+
+- macOS: `~/Library/Application Support/dev.local.pixel-pet/packs/<pack>/`
+- Windows: `%APPDATA%\dev.local.pixel-pet\packs\<pack>\`
+- Linux: `${XDG_DATA_HOME:-~/.local/share}/dev.local.pixel-pet/packs/<pack>/`
+
+Each `<pack>` folder holds the same `manifest.json`, `spritesheet.json`, and
+`spritesheet.png` as a bundled pack. Validate a folder before sharing it with:
+
+```bash
+npm run assets:validate -- path/to/pack
+```
+
+External packs go through the same strict validation as bundled packs; anything
+malformed is skipped. A built-in pack id always wins, so an external pack cannot
+override or spoof a bundled one. Plain browser previews have no packs directory
+and simply show the bundled packs.
+
 ## Next steps
 
 ```txt
@@ -266,6 +335,12 @@ v0.5
 - add pet capsule export/import
 - add QR exchange
 ```
+
+## Contributing
+
+See `CONTRIBUTING.md` for setup and the pre-PR check (`npm run check` runs
+typecheck, build, unit tests, and `cargo check`). Security policy and the
+untrusted-input model are in `SECURITY.md`.
 
 ## License
 

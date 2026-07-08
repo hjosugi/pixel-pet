@@ -1,9 +1,12 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
-const PETS_DIR = join(ROOT, "assets", "pets");
+// Optional path arg lets authors validate a community pack folder before
+// sharing it, e.g. `npm run assets:validate -- path/to/pack`. With no arg it
+// validates the bundled packs (used by assets:check and CI).
+const TARGET = process.argv[2] ? resolve(process.argv[2]) : join(ROOT, "assets", "pets");
 const REQUIRED_MODES = ["idle", "walk", "sleep", "react"];
 const DIALOGUE_TRIGGERS = ["click", "idle", "sleep", "focus", "lateNight", "lowEnergy"];
 const DIALOGUE_MAX_CHARS = 44;
@@ -205,10 +208,19 @@ function validatePack(packDir) {
   validateMetadata(packName, manifest, metadata, pngSize);
 }
 
-const packDirs = readdirSync(PETS_DIR)
-  .map((name) => join(PETS_DIR, name))
-  .filter((path) => statSync(path).isDirectory())
-  .sort();
+if (!existsSync(TARGET) || !statSync(TARGET).isDirectory()) {
+  console.error(`Pet pack validation failed: ${TARGET} is not a directory.`);
+  process.exit(1);
+}
+
+// A target that directly contains a manifest.json is a single pack; otherwise
+// it is a directory of pack folders.
+const packDirs = existsSync(join(TARGET, "manifest.json"))
+  ? [TARGET]
+  : readdirSync(TARGET)
+      .map((name) => join(TARGET, name))
+      .filter((path) => statSync(path).isDirectory())
+      .sort();
 
 for (const packDir of packDirs) {
   validatePack(packDir);

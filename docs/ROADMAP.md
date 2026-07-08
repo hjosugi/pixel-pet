@@ -56,3 +56,20 @@
 - QR exchange
 - seed-based visual traits
 ```
+
+## v0.7 Work companion
+
+```txt
+- activity layer: pet reacts to real work (start/working/waiting/done/error)
+- agent-agnostic ActivitySource abstraction
+- desktop activity inbox + Claude Code hook
+- runtime community pet packs from the app data packs/ directory
+- unit tests (vitest) and CI test gate
+- browser web demo (npx / GitHub Pages) and contributor/security docs
+```
+
+Done in v0.7 so far: activity layer, ActivitySource, desktop inbox + Claude Code
+hook, community packs, vitest suite + CI, web demo tooling, CONTRIBUTING/SECURITY.
+
+Next: wire more sources (git, editors), pack-level activity lines, optional
+signed capsules.

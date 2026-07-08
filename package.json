@@ -5,13 +5,25 @@
   "type": "module",
   "license": "0BSD",
   "description": "A lightweight cyberpunk pixel desktop pet prototype built with Tauri v2 and TypeScript.",
+  "bin": {
+    "pixel-pet": "bin/pixel-pet.mjs"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "assets/pets",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "assets:generate": "node tools/generate-pixel-assets.mjs",
     "assets:validate": "node tools/validate-pet-packs.mjs",
     "assets:check": "npm run assets:generate && npm run assets:validate && git diff --exit-code -- assets/pets",
     "dev": "vite --host 127.0.0.1",
     "build": "tsc && vite build",
-    "check": "npm run build && cargo check --manifest-path src-tauri/Cargo.toml",
+    "test": "vitest run",
+    "preview:web": "node bin/pixel-pet.mjs",
+    "check": "npm run build && npm run test && cargo check --manifest-path src-tauri/Cargo.toml",
     "release:binary": "tauri build --no-bundle",
     "release:bundle": "tauri build",
     "tauri": "tauri",
@@ -24,6 +36,7 @@
   "devDependencies": {
     "@tauri-apps/cli": "^2.0.0",
     "typescript": "^5.0.0",
-    "vite": "^7.0.0"
+    "vite": "^7.0.0",
+    "vitest": "^4.1.10"
   }
 }

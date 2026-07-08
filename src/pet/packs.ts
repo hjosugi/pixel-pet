@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import type { PetMode } from "./state";
 
 export const PET_DIALOGUE_MAX_CHARS = 44;
@@ -67,37 +68,88 @@ const spriteModules = import.meta.glob<string>("../../assets/pets/*/*.png", {
   query: "?url",
 });
 
-const PET_PACKS = loadPetPacks();
+// Raw pack files delivered by the desktop backend from the user packs dir.
+type ExternalPetPackSource = {
+  dir: string;
+  manifest: unknown;
+  metadata: unknown;
+  spritePng: number[];
+};
+
+const petPackRegistry: Record<string, PetPack> = loadBuiltInPetPacks();
 
 export function getPetPack(id: string): PetPack | undefined {
-  return PET_PACKS[id];
+  return petPackRegistry[id];
 }
 
 export function listPetPacks(): PetPack[] {
-  return Object.values(PET_PACKS);
+  return Object.values(petPackRegistry);
 }
 
-function loadPetPacks(): Record<string, PetPack> {
+// Load community packs dropped into the desktop app data `packs/` directory.
+// Returns the packs that were newly registered. Built-in ids always win, so an
+// external pack cannot spoof or replace a bundled one. Safe no-op (returns [])
+// in a plain browser preview where the Tauri command is unavailable.
+export async function loadExternalPetPacks(): Promise<PetPack[]> {
+  let sources: ExternalPetPackSource[];
+  try {
+    sources = await invoke<ExternalPetPackSource[]>("list_external_pet_packs");
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(sources)) return [];
+
+  const added: PetPack[] = [];
+  for (const source of sources) {
+    if (!source || !Array.isArray(source.spritePng) || source.spritePng.length === 0) continue;
+
+    const spriteUrl = URL.createObjectURL(new Blob([Uint8Array.from(source.spritePng)], { type: "image/png" }));
+    const pack = assemblePetPack(source.manifest as PetManifest, source.metadata as SpritesheetMetadata, spriteUrl);
+    if (!pack || petPackRegistry[pack.id]) {
+      URL.revokeObjectURL(spriteUrl);
+      continue;
+    }
+
+    petPackRegistry[pack.id] = pack;
+    added.push(pack);
+  }
+
+  return added;
+}
+
+function loadBuiltInPetPacks(): Record<string, PetPack> {
   const packs: Record<string, PetPack> = {};
 
   for (const [manifestPath, manifest] of Object.entries(manifestModules)) {
-    const pack = buildPetPack(manifestPath, manifest);
+    const pack = buildBuiltInPetPack(manifestPath, manifest);
     if (pack) packs[pack.id] = pack;
   }
 
   return packs;
 }
 
-function buildPetPack(manifestPath: string, manifest: PetManifest): PetPack | null {
+function buildBuiltInPetPack(manifestPath: string, manifest: PetManifest): PetPack | null {
   const dir = manifestPath.slice(0, manifestPath.lastIndexOf("/"));
-  const id = stringValue(manifest.id);
-  const name = stringValue(manifest.name);
-  const frameSize = positiveInteger(manifest.size?.base);
-  const scale = positiveInteger(manifest.size?.scale);
   const metadataFile = stringValue(manifest.assets?.metadata) ?? "spritesheet.json";
   const spritesheetFile = stringValue(manifest.assets?.spritesheet) ?? "spritesheet.png";
   const metadata = metadataModules[`${dir}/${metadataFile}`];
   const spriteUrl = spriteModules[`${dir}/${spritesheetFile}`];
+
+  return assemblePetPack(manifest, metadata, spriteUrl);
+}
+
+// Validate and assemble a pack from a manifest, spritesheet metadata, and a
+// resolved sprite URL. Shared by bundled packs (URL from the bundler) and
+// external packs (blob URL from backend bytes). Returns null on any mismatch.
+export function assemblePetPack(
+  manifest: PetManifest,
+  metadata: SpritesheetMetadata | undefined,
+  spriteUrl: string | undefined,
+): PetPack | null {
+  const id = stringValue(manifest.id);
+  const name = stringValue(manifest.name);
+  const frameSize = positiveInteger(manifest.size?.base);
+  const scale = positiveInteger(manifest.size?.scale);
 
   if (!id || !name || !frameSize || !scale || !metadata || !spriteUrl) return null;
   if (metadata.frame?.width !== frameSize || metadata.frame?.height !== frameSize) return null;
