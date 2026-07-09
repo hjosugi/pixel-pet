@@ -1,11 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Pixel Pet",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "identifier": "dev.local.pixel-pet",
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "publisher": "pixel-pet contributors",
     "copyright": "Copyright 2026 pixel-pet contributors",
     "shortDescription": "A lightweight cyberpunk pixel desktop pet.",
@@ -24,6 +25,17 @@
     "devUrl": "http://localhost:5173",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQ2OTZCNTZDQTM0NDUxNzYKUldSMlVVU2piTFdXMWlpbDBSVEZjUXNVQWFJM0NtZ3lzZncvdHBERlVYWllRbStoRk01YUMvcmcK",
+      "endpoints": [
+        "https://github.com/hjosugi/pixel-pet/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   },
   "app": {
     "macOSPrivateApi": true,

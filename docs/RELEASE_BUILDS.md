@@ -3,6 +3,8 @@
 Pixel Pet is still a local prototype, so release builds are unsigned by default.
 The release workflow uploads generated bundles as GitHub Actions artifacts
 instead of committing installer output.
+Updater artifacts are generated when the Tauri updater signing key is available
+to the build environment.
 
 ## Local prerequisites
 
@@ -59,6 +61,24 @@ src-tauri/target/release/bundle/**/*
 
 `src-tauri/target` is ignored by git, so generated installers and app bundles
 stay out of source control.
+
+## Updater artifacts
+
+The app checks the latest GitHub Release for `latest.json`. See
+`docs/UPDATER.md` for the signing key, updater artifact, and manifest
+publishing flow.
+
+GitHub Actions needs this repository secret to produce signed updater artifacts:
+
+```txt
+TAURI_SIGNING_PRIVATE_KEY
+```
+
+If the key has a password, also set:
+
+```txt
+TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+```
 
 ## Platform caveats
 

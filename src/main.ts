@@ -51,6 +51,7 @@ const alwaysOnTopToggle = document.querySelector<HTMLInputElement>("#always-on-t
 const autostartToggle = document.querySelector<HTMLInputElement>("#autostart-toggle");
 const talkFrequency = document.querySelector<HTMLSelectElement>("#talk-frequency");
 const motionLevel = document.querySelector<HTMLSelectElement>("#motion-level");
+const updateCheck = document.querySelector<HTMLButtonElement>("#update-check");
 const chatPanel = document.querySelector<HTMLFormElement>("#chat-panel");
 const chatInput = document.querySelector<HTMLInputElement>("#chat-input");
 const chatSend = document.querySelector<HTMLButtonElement>("#chat-send");
@@ -77,6 +78,7 @@ if (
   !autostartToggle ||
   !talkFrequency ||
   !motionLevel ||
+  !updateCheck ||
   !chatPanel ||
   !chatInput ||
   !chatSend ||
@@ -105,6 +107,7 @@ const alwaysOnTopCheckbox = alwaysOnTopToggle;
 const autostartCheckbox = autostartToggle;
 const talkFrequencySelect = talkFrequency;
 const motionLevelSelect = motionLevel;
+const updateCheckButton = updateCheck;
 const chatForm = chatPanel;
 const chatTextInput = chatInput;
 const chatSendButton = chatSend;
@@ -124,6 +127,7 @@ let lastReadoutAt = 0;
 let schedulerTimer: number | undefined;
 let speechTimer: number | undefined;
 let aiInFlight = false;
+let updateInFlight = false;
 let openAiApiKey: string | null = null;
 let chatHistory: AiChatMessage[] = [];
 let ballGame = createInactiveBallGame();
@@ -296,6 +300,10 @@ motionLevelSelect.addEventListener("change", () => {
   updatePetSettings({ motionLevel: value });
 });
 
+updateCheckButton.addEventListener("click", () => {
+  void checkForAppUpdate();
+});
+
 focusTimerButton.addEventListener("click", () => {
   setFocusTimerRunning(!pet.focusTimer.running);
 });
@@ -402,6 +410,7 @@ function renderSettingsControls() {
   autostartCheckbox.disabled = true;
   talkFrequencySelect.value = pet.settings.talkFrequency;
   motionLevelSelect.value = pet.settings.motionLevel;
+  renderUpdaterControls();
 }
 
 function applyAppSettings() {
@@ -578,6 +587,66 @@ function renderAiControls() {
   aiProviderSelect.value = pet.settings.aiProvider;
   chatTextInput.disabled = aiInFlight;
   chatSendButton.disabled = aiInFlight;
+}
+
+function renderUpdaterControls(label = "upd") {
+  updateCheckButton.textContent = label;
+  updateCheckButton.disabled = updateInFlight;
+}
+
+async function checkForAppUpdate() {
+  if (!isDesktop) {
+    say("desktop only.", 1200);
+    return;
+  }
+  if (updateInFlight) return;
+
+  updateInFlight = true;
+  renderUpdaterControls("chk");
+  say("checking update.", 1200);
+
+  try {
+    const { check } = await import("@tauri-apps/plugin-updater");
+    const update = await check({ timeout: 15_000 });
+    if (!update) {
+      say("up to date.", 1400);
+      return;
+    }
+
+    const notes = update.body ? `\n\n${update.body}` : "";
+    const install = window.confirm(`Install Pixel Pet ${update.version}?${notes}`);
+    if (!install) {
+      say("update ready.", 1400);
+      return;
+    }
+
+    const progress = { downloaded: 0, total: 0 };
+    renderUpdaterControls("get");
+    await update.downloadAndInstall((event) => {
+      if (event.event === "Started") {
+        progress.total = event.data.contentLength ?? 0;
+        progress.downloaded = 0;
+        renderUpdaterControls("0%");
+      } else if (event.event === "Progress") {
+        progress.downloaded += event.data.chunkLength;
+        if (progress.total > 0) {
+          renderUpdaterControls(`${Math.min(99, Math.round((progress.downloaded / progress.total) * 100))}%`);
+        }
+      } else if (event.event === "Finished") {
+        renderUpdaterControls("inst");
+      }
+    });
+
+    say("restarting.", 1200);
+    const { relaunch } = await import("@tauri-apps/plugin-process");
+    await relaunch();
+  } catch (error) {
+    console.error("update check failed", error);
+    say("update failed.", 1800);
+  } finally {
+    updateInFlight = false;
+    renderUpdaterControls();
+  }
 }
 
 function requestOpenAiApiKey() {

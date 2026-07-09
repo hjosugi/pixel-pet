@@ -195,7 +195,7 @@ body,
   z-index: 9;
   display: grid;
   grid-template-columns: 1fr;
-  gap: 5px;
+  gap: 4px;
   width: 88px;
   padding: 6px;
   border: 1px solid rgba(168, 214, 255, 0.24);
@@ -213,7 +213,7 @@ body,
   display: grid;
   grid-template-columns: 28px 1fr;
   align-items: center;
-  min-height: 22px;
+  min-height: 20px;
   gap: 4px;
   color: rgba(232, 247, 255, 0.78);
   font-size: 9px;
@@ -243,6 +243,31 @@ body,
   font: inherit;
   font-size: 9px;
   line-height: 1.2;
+}
+
+.settings-action {
+  min-height: 20px;
+  padding: 3px 6px;
+  border: 1px solid rgba(255, 208, 97, 0.3);
+  border-radius: 6px;
+  background: rgba(8, 10, 24, 0.42);
+  color: rgba(255, 246, 210, 0.78);
+  font: inherit;
+  font-size: 9px;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.settings-action:hover,
+.settings-action:focus-visible {
+  border-color: rgba(255, 208, 97, 0.78);
+  color: rgba(255, 253, 242, 0.96);
+  outline: none;
+}
+
+.settings-action:disabled {
+  cursor: wait;
+  opacity: 0.62;
 }
 
 .settings-field select:hover,

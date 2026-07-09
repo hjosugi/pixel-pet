@@ -69,6 +69,7 @@ npm run tauri:build
 
 Release build notes for Windows, macOS, and Linux are in
 `docs/RELEASE_BUILDS.md`.
+Updater signing and manifest notes are in `docs/UPDATER.md`.
 
 Local release checks:
 
@@ -102,6 +103,7 @@ bundles.
 - persistent XP, level, affection, and reward items
 - local pet capsule JSON export/import
 - persisted settings for visibility, always-on-top, talk frequency, and motion
+- manual desktop update check backed by Tauri updater signing
 - idle / walk / sleep / react state machine
 - click reaction
 - short dialogue bubble
