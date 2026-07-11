@@ -1,3 +1,6 @@
+<!-- i18n: language-switcher -->
+[English](README.md) | [日本語](README.ja.md)
+
 # cyber-cat
 
 This folder contains the default free pixel pet pack.

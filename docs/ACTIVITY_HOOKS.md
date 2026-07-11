@@ -1,3 +1,6 @@
+<!-- i18n: language-switcher -->
+[English](ACTIVITY_HOOKS.md) | [日本語](ACTIVITY_HOOKS.ja.md)
+
 # Activity hooks
 
 The pet can react to real work through the activity layer. A host process reports

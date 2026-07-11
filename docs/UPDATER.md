@@ -1,3 +1,6 @@
+<!-- i18n: language-switcher -->
+[English](UPDATER.md) | [日本語](UPDATER.ja.md)
+
 # Updater
 
 Pixel Pet uses the Tauri v2 updater plugin. Updates are opt-in from the pet
