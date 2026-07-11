@@ -1,3 +1,6 @@
+<!-- i18n: language-switcher -->
+[English](ASSETS.md) | [日本語](ASSETS.ja.md)
+
 # Assets
 
 ## External inspiration policy

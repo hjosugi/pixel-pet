@@ -1,3 +1,6 @@
+<!-- i18n: language-switcher -->
+[English](README.md) | [日本語](README.ja.md)
+
 # kofun-friend
 
 This folder contains the `kofun-friend` pet pack.
