@@ -72,11 +72,15 @@ fn read_external_pack(path: &Path) -> Option<ExternalPetPack> {
 
     let assets = manifest.get("assets");
     let metadata_name = safe_asset_name(
-        assets.and_then(|a| a.get("metadata")).and_then(|v| v.as_str()),
+        assets
+            .and_then(|a| a.get("metadata"))
+            .and_then(|v| v.as_str()),
         "spritesheet.json",
     )?;
     let sprite_name = safe_asset_name(
-        assets.and_then(|a| a.get("spritesheet")).and_then(|v| v.as_str()),
+        assets
+            .and_then(|a| a.get("spritesheet"))
+            .and_then(|v| v.as_str()),
         "spritesheet.png",
     )?;
 
@@ -211,6 +215,11 @@ fn hide_main_window(app: &AppHandle) {
 
 fn main() {
     tauri::Builder::default()
+        .plugin(
+            tauri_plugin_autostart::Builder::new()
+                .app_name("Pixel Pet")
+                .build(),
+        )
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![

@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { createLatestSaveQueue } from "./saveQueue";
 
 export type PetMode = "idle" | "walk" | "sleep" | "react";
 
@@ -184,14 +185,20 @@ function loadLegacyState(): PetState | null {
   }
 }
 
-export async function saveState(state: PetState): Promise<void> {
+async function persistState(state: PetState): Promise<void> {
   try {
     await invoke("save_pet_state", { state });
     localStorage.removeItem(LEGACY_STORAGE_KEY);
   } catch {
-    localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(state));
+    try {
+      localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(state));
+    } catch {
+      // Storage can be unavailable or full in a restricted browser preview.
+    }
   }
 }
+
+export const saveState = createLatestSaveQueue(persistState);
 
 function normalizeState(raw: unknown): PetState | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
@@ -269,7 +276,8 @@ function normalizeSettings(raw: unknown): PetSettings {
       typeof candidate.lowDistractionMode === "boolean" ? candidate.lowDistractionMode : DEFAULT_SETTINGS.lowDistractionMode,
     aiProvider: normalizeAiProvider(candidate.aiProvider),
     alwaysOnTop: typeof candidate.alwaysOnTop === "boolean" ? candidate.alwaysOnTop : DEFAULT_SETTINGS.alwaysOnTop,
-    autostartRequested: DEFAULT_SETTINGS.autostartRequested,
+    autostartRequested:
+      typeof candidate.autostartRequested === "boolean" ? candidate.autostartRequested : DEFAULT_SETTINGS.autostartRequested,
     motionLevel: normalizeMotionLevel(candidate.motionLevel),
     petVisible: typeof candidate.petVisible === "boolean" ? candidate.petVisible : DEFAULT_SETTINGS.petVisible,
     talkFrequency: normalizeTalkFrequency(candidate.talkFrequency),
