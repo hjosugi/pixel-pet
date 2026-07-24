@@ -56,10 +56,10 @@ Create `latest.json` from uploaded updater artifacts and signatures:
 
 ```bash
 npm run updater:manifest -- \
-  --version 0.2.1 \
+  --version 0.2.2 \
   --out latest.json \
-  --notes "Pixel Pet 0.2.1" \
-  --platform linux-x86_64=https://github.com/hjosugi/pixel-pet/releases/download/v0.2.1/Pixel.Pet.AppImage.tar.gz,path/to/Pixel.Pet.AppImage.tar.gz.sig
+  --notes "Pixel Pet 0.2.2" \
+  --platform linux-x86_64=https://github.com/hjosugi/pixel-pet/releases/download/v0.2.2/Pixel.Pet.AppImage.tar.gz,path/to/Pixel.Pet.AppImage.tar.gz.sig
 ```
 
 Repeat `--platform` for each target you attach to the GitHub Release. Upload

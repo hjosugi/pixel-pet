@@ -19,8 +19,8 @@ Rust / Tauri
 - native window
 - tray menu
 - show / hide / quit
-- future auto-start
-- future local file storage
+- OS autostart integration
+- local file storage
 
 TypeScript / Canvas
 - pet animation

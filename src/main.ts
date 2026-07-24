@@ -128,6 +128,8 @@ let schedulerTimer: number | undefined;
 let speechTimer: number | undefined;
 let aiInFlight = false;
 let updateInFlight = false;
+let autostartInFlight = false;
+let autostartAvailable = isDesktop;
 let openAiApiKey: string | null = null;
 let chatHistory: AiChatMessage[] = [];
 let ballGame = createInactiveBallGame();
@@ -284,8 +286,7 @@ alwaysOnTopCheckbox.addEventListener("change", () => {
 });
 
 autostartCheckbox.addEventListener("change", () => {
-  autostartCheckbox.checked = false;
-  updatePetSettings({ autostartRequested: false }, true);
+  void setAutostartEnabled(autostartCheckbox.checked);
 });
 
 talkFrequencySelect.addEventListener("change", () => {
@@ -372,7 +373,6 @@ function updatePetSettings(settings: Partial<PetState["settings"]>, silent = fal
     settings: {
       ...pet.settings,
       ...settings,
-      autostartRequested: false,
     },
   };
 
@@ -406,8 +406,14 @@ function renderSettingsOptions() {
 function renderSettingsControls() {
   petVisibleCheckbox.checked = pet.settings.petVisible;
   alwaysOnTopCheckbox.checked = pet.settings.alwaysOnTop;
-  autostartCheckbox.checked = false;
-  autostartCheckbox.disabled = true;
+  autostartCheckbox.checked = pet.settings.autostartRequested;
+  autostartCheckbox.disabled = !autostartAvailable || autostartInFlight;
+  const autostartField = autostartCheckbox.closest(".settings-check");
+  autostartField?.classList.toggle("disabled", autostartCheckbox.disabled);
+  autostartField?.setAttribute(
+    "title",
+    autostartAvailable ? "Launch Pixel Pet when you sign in" : "Autostart is available in the desktop app",
+  );
   talkFrequencySelect.value = pet.settings.talkFrequency;
   motionLevelSelect.value = pet.settings.motionLevel;
   renderUpdaterControls();
@@ -427,6 +433,67 @@ async function applyNativeWindowSettings() {
     await appWindow.setAlwaysOnTop(pet.settings.alwaysOnTop);
   } catch {
     // Browser preview and unsupported platforms can ignore native window settings.
+  }
+}
+
+async function syncAutostartState() {
+  if (!isDesktop) {
+    autostartAvailable = false;
+    pet = {
+      ...pet,
+      settings: { ...pet.settings, autostartRequested: false },
+    };
+    return;
+  }
+
+  try {
+    const { isEnabled } = await import("@tauri-apps/plugin-autostart");
+    const enabled = await isEnabled();
+    autostartAvailable = true;
+    pet = {
+      ...pet,
+      settings: { ...pet.settings, autostartRequested: enabled },
+    };
+  } catch (error) {
+    console.error("autostart state check failed", error);
+    autostartAvailable = false;
+    pet = {
+      ...pet,
+      settings: { ...pet.settings, autostartRequested: false },
+    };
+  }
+}
+
+async function setAutostartEnabled(enabled: boolean) {
+  if (!autostartAvailable || autostartInFlight) {
+    renderSettingsControls();
+    return;
+  }
+
+  autostartInFlight = true;
+  renderSettingsControls();
+
+  try {
+    const { disable, enable, isEnabled } = await import("@tauri-apps/plugin-autostart");
+    if (enabled) {
+      await enable();
+    } else {
+      await disable();
+    }
+
+    const actual = await isEnabled();
+    pet = {
+      ...pet,
+      settings: { ...pet.settings, autostartRequested: actual },
+    };
+    await saveState(pet);
+    say(actual ? "autostart on." : "autostart off.", 1200);
+  } catch (error) {
+    console.error("autostart update failed", error);
+    say("autostart failed.", 1600);
+  } finally {
+    autostartInFlight = false;
+    renderSettingsControls();
   }
 }
 
@@ -778,7 +845,13 @@ function targetFrameIntervalMs() {
 
 function scheduleTick() {
   window.clearTimeout(schedulerTimer);
-  schedulerTimer = window.setTimeout(() => window.requestAnimationFrame(tick), targetFrameIntervalMs());
+  schedulerTimer = window.setTimeout(() => {
+    if (document.hidden || !isPetVisible()) {
+      tick(performance.now());
+    } else {
+      window.requestAnimationFrame(tick);
+    }
+  }, targetFrameIntervalMs());
 }
 
 function updateTimingReadout(now: number, dt: number, rendered: boolean) {
@@ -964,6 +1037,7 @@ async function boot() {
   await loadExternalPetPacks();
   petPacks = listPetPacks();
   pet = normalizeLoadedPetState((await loadState()) ?? pet);
+  await syncAutostartState();
   applyLowDistractionUi();
   renderSettingsOptions();
   applyAppSettings();

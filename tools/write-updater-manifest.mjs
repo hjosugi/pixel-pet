@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 function usage() {
   console.error(`Usage:
   node tools/write-updater-manifest.mjs \\
-    --version 0.2.1 \\
+    --version 0.2.2 \\
     --out latest.json \\
     --notes "Release notes" \\
     --platform linux-x86_64=https://example.com/app.AppImage.tar.gz,path/to/app.AppImage.tar.gz.sig

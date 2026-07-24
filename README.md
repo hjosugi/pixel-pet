@@ -103,6 +103,7 @@ bundles.
 - persistent XP, level, affection, and reward items
 - local pet capsule JSON export/import
 - persisted settings for visibility, always-on-top, talk frequency, and motion
+- desktop autostart control for Windows, macOS, and Linux
 - manual desktop update check backed by Tauri updater signing
 - idle / walk / sleep / react state machine
 - click reaction
@@ -138,7 +139,7 @@ bundles.
 
 - The Tauri window is frameless, transparent, fixed-size, and hidden from the taskbar where the platform supports `skipTaskbar`.
 - Drag from the top strip of the pet window to reposition it.
-- The `set` panel controls pet visibility, always-on-top behavior, talk frequency, and motion level. Autostart is shown disabled until a desktop autostart integration is added.
+- The `set` panel controls pet visibility, autostart, always-on-top behavior, talk frequency, and motion level. Autostart is desktop-only and remains disabled in the browser preview.
 - The tray menu provides Show Pixel Pet, Hide, and Quit.
 - Closing the window hides it to the tray; use Quit from the tray menu to exit the app.
 - macOS transparency uses `macOSPrivateApi`, which is acceptable for this local prototype but not for App Store distribution.
