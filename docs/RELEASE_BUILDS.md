@@ -1,3 +1,6 @@
+<!-- i18n: language-switcher -->
+[English](RELEASE_BUILDS.md) | [日本語](RELEASE_BUILDS.ja.md)
+
 # Release builds
 
 Pixel Pet is still a local prototype, so release builds are unsigned by default.

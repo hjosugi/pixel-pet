@@ -1,3 +1,6 @@
+<!-- i18n: language-switcher -->
+[English](CAPSULE_SHARING.md) | [日本語](CAPSULE_SHARING.ja.md)
+
 # Capsule sharing
 
 Pixel-pet exchange stays local-first. A capsule is a JSON file a user chooses to

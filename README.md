@@ -1,3 +1,6 @@
+<!-- i18n: language-switcher -->
+[English](README.md) | [日本語](README.ja.md)
+
 # pixel-pet
 
 `pixel-pet` is a lightweight desktop pet prototype.
