@@ -5,3 +5,9 @@ src-tauri/target
 src-tauri/gen
 .tauri
 *.log
+.claude/skills/graphify/
+.claude/settings.local.json
+.copilot/skills/graphify/
+.codex/skills/graphify/
+.codex/hooks.json
+graphify-out/

@@ -29,7 +29,9 @@
     "release:bundle": "tauri build",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "graphify:setup": "sh scripts/graphify.sh setup",
+    "graphify:update": "sh scripts/graphify.sh update"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
