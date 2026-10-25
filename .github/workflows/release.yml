@@ -54,6 +54,9 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
+      - name: Check Tauri runtime package versions
+        run: npm run check:tauri-versions
+
       - name: Check generated assets
         run: npm run assets:check
 
